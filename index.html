@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Charlotte Mason Scheduler — a visual weekly schedule planner stored entirely in your browser." />
+  <title>Charlotte Mason Scheduler</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <a class="skip-link" href="#main-section">Skip to main content</a>
+
+  <!-- ===== HEADER ===== -->
+  <header role="banner">
+    <h1>Charlotte Mason Scheduler</h1>
+    <div class="header-controls">
+      <button
+        id="fullscreen-toggle"
+        class="icon-btn"
+        aria-label="Toggle fullscreen"
+        aria-pressed="false"
+        title="Toggle fullscreen"
+      >
+        <span aria-hidden="true" id="fullscreen-icon">⛶</span>
+        <span class="btn-label">Fullscreen</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== NAV ===== -->
+  <nav role="navigation" aria-label="Application controls">
+    <ul role="list">
+      <li>
+        <button class="nav-btn" id="export-btn" aria-label="Export schedule as JSON file">
+          Export Config
+        </button>
+      </li>
+      <li>
+        <button class="nav-btn" id="import-btn" aria-label="Import schedule from JSON file">
+          Import Config
+        </button>
+      </li>
+      <li>
+        <button class="nav-btn" id="clear-btn" aria-label="Clear all placements for selected day">
+          Clear Day
+        </button>
+      </li>
+    </ul>
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file" accept=".json" aria-hidden="true" tabindex="-1" />
+  </nav>
+
+  <!-- ===== MAIN ===== -->
+  <main id="main-section" role="main" aria-label="Scheduler workspace">
+
+    <!-- TOP PANEL: Day buttons + Name buttons (~35% height) -->
+    <section class="top-panel" aria-label="Day and person selection">
+      <div class="top-row">
+
+        <div class="day-group">
+          <span class="panel-label" id="day-label">Day:</span>
+          <div class="btn-group" role="group" aria-labelledby="day-label">
+            <button class="day-btn active" data-day="Monday"  aria-pressed="true">Mon</button>
+            <button class="day-btn"        data-day="Tuesday" aria-pressed="false">Tue</button>
+            <button class="day-btn"        data-day="Wednesday" aria-pressed="false">Wed</button>
+            <button class="day-btn"        data-day="Thursday" aria-pressed="false">Thu</button>
+            <button class="day-btn"        data-day="Friday"  aria-pressed="false">Fri</button>
+          </div>
+        </div>
+
+        <div class="name-group">
+          <span class="panel-label" id="people-label">People:</span>
+          <div class="btn-group" role="group" aria-labelledby="people-label">
+            <div id="name-btn-list" class="name-btn-list"></div>
+            <button id="add-person-btn" class="add-btn" aria-label="Add a new person">
+              + Person
+            </button>
+          </div>
+          <!-- Inline add-person input (hidden by default) -->
+          <div id="add-person-form" class="inline-form" hidden>
+            <label for="new-person-name" class="sr-only">Person name</label>
+            <input
+              type="text"
+              id="new-person-name"
+              placeholder="Enter name…"
+              autocomplete="off"
+              maxlength="40"
+            />
+            <button id="save-person-btn" class="btn-primary btn-sm">Add</button>
+            <button id="cancel-person-btn" class="btn-secondary btn-sm">Cancel</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CONTENT AREA: Left panel + Schedule grid -->
+    <div class="content-area">
+
+      <!-- ===== LEFT PANEL: Activity cards (~35% width) ===== -->
+      <aside class="left-panel" aria-label="Activity cards panel">
+
+        <button id="add-card-btn" class="add-card-btn" aria-expanded="false" aria-controls="new-card-form">
+          + Add Activity
+        </button>
+
+        <!-- New card form -->
+        <div id="new-card-form" class="card-form" role="form" aria-label="New activity" hidden>
+          <div class="field-group">
+            <label for="new-card-name">Name</label>
+            <input type="text" id="new-card-name" placeholder="e.g. Narration" autocomplete="off" maxlength="60" />
+          </div>
+          <div class="field-group">
+            <label for="new-card-desc">Description</label>
+            <input type="text" id="new-card-desc" placeholder="e.g. Read and narrate passage" autocomplete="off" maxlength="120" />
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label for="new-card-time">Minutes</label>
+              <input type="number" id="new-card-time" placeholder="30" min="5" max="480" step="5" />
+            </div>
+            <div class="field-group">
+              <label for="new-card-count">Count</label>
+              <input type="number" id="new-card-count" placeholder="1" min="1" max="99" value="1" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button id="save-card-btn" class="btn-primary">Save Card</button>
+            <button id="cancel-card-btn" class="btn-secondary">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Scrollable card list -->
+        <div id="card-list" class="card-list" role="list" aria-label="Activity cards — drag to schedule"></div>
+
+      </aside>
+
+      <!-- ===== SCHEDULE SECTION: Time grid (~65% width) ===== -->
+      <section class="schedule-section" aria-label="Weekly schedule grid">
+
+        <div class="schedule-toolbar">
+          <label for="zoom-slider" class="zoom-label">Zoom</label>
+          <input
+            type="range"
+            id="zoom-slider"
+            min="25"
+            max="250"
+            value="100"
+            step="5"
+            aria-label="Grid zoom level"
+          />
+          <output id="zoom-display" for="zoom-slider" aria-live="polite">100%</output>
+        </div>
+
+        <div class="schedule-wrapper" id="schedule-wrapper" tabindex="0" aria-label="Schedule grid — scroll to navigate">
+          <!-- Time column (sticky left) -->
+          <div class="time-column" id="time-column" aria-hidden="true"></div>
+          <!-- Grid columns (one per selected person) -->
+          <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Schedule grid"></div>
+        </div>
+
+      </section>
+
+    </div><!-- /.content-area -->
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer role="contentinfo">
+    <p>Charlotte Mason Scheduler &mdash; All data is stored locally in your browser. No accounts, no servers.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
