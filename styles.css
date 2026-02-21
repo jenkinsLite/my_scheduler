@@ -455,17 +455,23 @@ nav ul {
   border-radius: var(--radius);
   padding: var(--pad);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
   flex-shrink: 0;
 
-  /* Mobile: limited height */
+  /* Mobile: cap height and let the panel itself scroll */
   max-height: 45vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--clr-border) transparent;
 }
+.left-panel::-webkit-scrollbar { width: 6px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--clr-border); border-radius: 3px; }
 
 @media (min-width: 768px) {
   .left-panel {
     flex: 0 0 35%;
     max-height: none;
+    overflow: hidden; /* desktop: card-list handles its own scroll */
   }
 }
 
@@ -721,17 +727,29 @@ nav ul {
 
 .schedule-toolbar {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  flex-direction: column;   /* mobile: zoom on top, day buttons below */
+  gap: 0.4rem;
   flex-shrink: 0;
-  padding-left: calc(0.85rem * 2 + 1em + 4px); /* one day-btn width offset */
 }
 
 .zoom-controls {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-left: auto;
+  order: -1; /* zoom row appears first on mobile */
+}
+
+@media (min-width: 768px) {
+  .schedule-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+    padding-left: calc(0.85rem * 2 + 1em + 4px); /* one day-btn width offset */
+  }
+  .zoom-controls {
+    order: 0;
+    margin-left: auto;
+  }
 }
 
 .zoom-label {
