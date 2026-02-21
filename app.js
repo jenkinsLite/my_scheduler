@@ -161,12 +161,14 @@ function renderNameButtons() {
     btn.addEventListener('click', () => {
       const idx = state.selectedPeople.indexOf(person);
       if (idx > -1) {
-        if (state.selectedPeople.length > 1) state.selectedPeople.splice(idx, 1);
+        state.selectedPeople.splice(idx, 1);
       } else {
         state.selectedPeople.push(person);
       }
+      const nowSel = state.selectedPeople.includes(person);
+      btn.classList.toggle('selected', nowSel);
+      btn.setAttribute('aria-pressed', String(nowSel));
       saveState();
-      renderNameButtons();
       renderGrid();
     });
 
@@ -180,13 +182,25 @@ function renderNameButtons() {
 }
 
 function inlineEditPerson(btn, oldName) {
+  // Wrapper holds the input + delete button side by side
+  const wrapper = document.createElement('div');
+  wrapper.className = 'name-btn-edit-wrapper';
+
   const input = document.createElement('input');
   input.type = 'text';
   input.value = oldName;
-  input.className = 'inline-edit-input';
+  input.className = 'name-btn-edit-input';
   input.maxLength = 40;
-  input.setAttribute('aria-label', 'Rename person');
-  btn.replaceWith(input);
+  input.setAttribute('aria-label', 'Rename person — press Enter to save, Escape to cancel');
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'name-btn-delete-btn';
+  delBtn.textContent = '×';
+  delBtn.setAttribute('aria-label', `Delete ${oldName}`);
+
+  wrapper.appendChild(input);
+  wrapper.appendChild(delBtn);
+  btn.replaceWith(wrapper);
   input.focus();
   input.select();
 
@@ -197,7 +211,6 @@ function inlineEditPerson(btn, oldName) {
       if (pi > -1) state.people[pi] = newName;
       const si = state.selectedPeople.indexOf(oldName);
       if (si > -1) state.selectedPeople[si] = newName;
-      // migrate schedule refs
       DAYS.forEach(day => {
         if (state.schedule[day] && state.schedule[day][oldName]) {
           state.schedule[day][newName] = state.schedule[day][oldName];
@@ -212,9 +225,28 @@ function inlineEditPerson(btn, oldName) {
 
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  { input.blur(); }
-    if (e.key === 'Escape') { renderNameButtons(); }
+    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Escape') renderNameButtons();
   });
+
+  // Prevent input blur when clicking delete so the click still fires
+  delBtn.addEventListener('mousedown', e => e.preventDefault());
+  delBtn.addEventListener('click', () => {
+    input.removeEventListener('blur', commit); // prevent commit from running on removal
+    wrapper.remove();
+    deletePerson(oldName);
+  });
+}
+
+function deletePerson(name) {
+  state.people         = state.people.filter(p => p !== name);
+  state.selectedPeople = state.selectedPeople.filter(p => p !== name);
+  DAYS.forEach(day => {
+    if (state.schedule[day]) delete state.schedule[day][name];
+  });
+  saveState();
+  renderNameButtons();
+  renderGrid();
 }
 
 // ── Render: Activity cards (left panel) ────────────────────
@@ -489,7 +521,7 @@ function placedCardEl(card, placement, person, slotsContainer) {
   el.style.height = heightPx + 'px';
   el.dataset.instanceId = placement.instanceId;
   el.setAttribute('aria-label',
-    `${card.name} at ${minutesToLabel(placement.slotIndex * SLOT_MIN)}, ${card.time} min. Click × to remove.`);
+    `${card.name} at ${minutesToLabel(placement.slotIndex * SLOT_MIN)}, ${card.time} min. Drag to move, click × to remove.`);
 
   const nameEl = el.appendChild(document.createElement('div'));
   nameEl.className = 'placed-name';
@@ -507,6 +539,16 @@ function placedCardEl(card, placement, person, slotsContainer) {
     e.stopPropagation();
     removePlaced(person, placement.instanceId);
   });
+
+  // Drag to reposition
+  el.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    startGridCardDrag(e, card, placement, person, el);
+  });
+  el.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) return;
+    startGridCardDragTouch(e, card, placement, person, el);
+  }, { passive: false });
 
   slotsContainer.appendChild(el);
 }
@@ -538,12 +580,13 @@ function placeCard(cardId, person, slotIndex) {
     const eEnd = p.slotIndex + ec.time / SLOT_MIN;
     return !(endSlot <= p.slotIndex || slotIndex >= eEnd);
   });
-  if (overlaps) { showToast('Time slot overlaps an existing activity'); return; }
+  if (overlaps) { showToast('Time slot overlaps an existing activity'); return false; }
 
   existing.push({ instanceId: uid(), cardId, slotIndex });
   saveState();
   renderGrid();
   showToast(`Placed: ${card.name} at ${minutesToLabel(slotIndex * SLOT_MIN)}`);
+  return true;
 }
 
 // ── Card Reorder (within left panel) ───────────────────────
@@ -656,6 +699,107 @@ function startReorderTouch(e, cardId, srcEl) {
   document.addEventListener('touchend', end);
 }
 
+// ── Grid Card Drag (reposition a placed card) ──────────────
+function restorePlacement(savedPlacement, savedPerson) {
+  if (!state.schedule[state.selectedDay]) state.schedule[state.selectedDay] = {};
+  if (!state.schedule[state.selectedDay][savedPerson]) state.schedule[state.selectedDay][savedPerson] = [];
+  state.schedule[state.selectedDay][savedPerson].push(savedPlacement);
+  saveState();
+  renderGrid();
+}
+
+function startGridCardDrag(e, card, placement, person, srcEl) {
+  e.preventDefault();
+
+  // Temporarily remove from state so overlap check ignores it
+  const savedPlacement = { ...placement };
+  const day = state.schedule[state.selectedDay];
+  if (day && day[person]) {
+    day[person] = day[person].filter(s => s.instanceId !== placement.instanceId);
+  }
+
+  srcEl.classList.add('dragging');
+  const rect = srcEl.getBoundingClientRect();
+  const grabOffsetY = e.clientY - rect.top;
+
+  const ghost = buildGhost(card, rect.width);
+  ghost.style.left = (e.clientX - 16) + 'px';
+  ghost.style.top  = (e.clientY - grabOffsetY) + 'px';
+
+  dragState = { cardId: card.id, ghost, grabOffsetY };
+
+  const move = e => {
+    ghost.style.left = (e.clientX - 16) + 'px';
+    ghost.style.top  = (e.clientY - grabOffsetY) + 'px';
+    highlightColumn(e.clientX, e.clientY);
+  };
+
+  const up = e => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+    clearHighlight();
+    ghost.remove();
+    srcEl.classList.remove('dragging');
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const col    = target?.closest('.grid-column');
+    const placed = col ? dropOnColumn(e.clientY, col, card.id) : false;
+    if (!placed) restorePlacement(savedPlacement, person);
+
+    dragState = null;
+  };
+
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+
+function startGridCardDragTouch(e, card, placement, person, srcEl) {
+  e.preventDefault();
+
+  const savedPlacement = { ...placement };
+  const day = state.schedule[state.selectedDay];
+  if (day && day[person]) {
+    day[person] = day[person].filter(s => s.instanceId !== placement.instanceId);
+  }
+
+  const touch = e.touches[0];
+  srcEl.classList.add('dragging');
+  const rect = srcEl.getBoundingClientRect();
+  const grabOffsetY = touch.clientY - rect.top;
+
+  const ghost = buildGhost(card, rect.width);
+  ghost.style.left = (touch.clientX - 16) + 'px';
+  ghost.style.top  = (touch.clientY - grabOffsetY) + 'px';
+
+  dragState = { cardId: card.id, ghost, grabOffsetY };
+
+  const move = e => {
+    const t = e.touches[0];
+    ghost.style.left = (t.clientX - 16) + 'px';
+    ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
+    highlightColumn(t.clientX, t.clientY);
+  };
+
+  const end = e => {
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end);
+    clearHighlight();
+    ghost.remove();
+    srcEl.classList.remove('dragging');
+
+    const t      = e.changedTouches[0];
+    const target = document.elementFromPoint(t.clientX, t.clientY);
+    const col    = target?.closest('.grid-column');
+    const placed = col ? dropOnColumn(t.clientY, col, card.id) : false;
+    if (!placed) restorePlacement(savedPlacement, person);
+
+    dragState = null;
+  };
+
+  document.addEventListener('touchmove', move, { passive: false });
+  document.addEventListener('touchend', end);
+}
+
 // ── Custom Drag & Drop (to schedule grid) ──────────────────
 function buildGhost(card, w) {
   const ghost = document.createElement('div');
@@ -676,13 +820,13 @@ function buildGhost(card, w) {
 
 function dropOnColumn(clientY, colEl, cardId) {
   const slotsEl = colEl.querySelector('.col-slots');
-  if (!slotsEl) return;
+  if (!slotsEl) return false;
   const rect = slotsEl.getBoundingClientRect();
   const rawY  = clientY - rect.top + slotsEl.closest('.schedule-wrapper').scrollTop;
   // Adjust for ghost offset so card top aligns correctly
   const offsetY = dragState ? (dragState.grabOffsetY || 0) : 0;
   const slotIndex = Math.floor((rawY - offsetY) / unitPx());
-  placeCard(cardId, colEl.dataset.person, slotIndex);
+  return placeCard(cardId, colEl.dataset.person, slotIndex);
 }
 
 function highlightColumn(x, y) {
@@ -783,39 +927,43 @@ document.querySelectorAll('.day-btn').forEach(btn => {
 });
 
 // ── UI: Add Person ──────────────────────────────────────────
-const addPersonBtn    = document.getElementById('add-person-btn');
-const addPersonForm   = document.getElementById('add-person-form');
-const newPersonInput  = document.getElementById('new-person-name');
-const savePersonBtn   = document.getElementById('save-person-btn');
-const cancelPersonBtn = document.getElementById('cancel-person-btn');
+const addPersonBtn = document.getElementById('add-person-btn');
 
-addPersonBtn.addEventListener('click', () => {
-  addPersonForm.hidden = !addPersonForm.hidden;
-  if (!addPersonForm.hidden) {
-    newPersonInput.value = '';
-    newPersonInput.focus();
-  }
-});
+addPersonBtn.addEventListener('click', startAddPerson);
 
-function commitAddPerson() {
-  const name = clean(newPersonInput.value);
-  if (name && !state.people.includes(name)) {
-    state.people.push(name);
-    state.selectedPeople.push(name);
-    saveState();
-    renderNameButtons();
-    renderGrid();
-    showToast(`Added: ${name}`);
-  }
-  addPersonForm.hidden = true;
+function startAddPerson() {
+  addPersonBtn.hidden = true;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Name…';
+  input.maxLength = 40;
+  input.autocomplete = 'off';
+  input.className = 'add-btn add-btn-input';
+  input.setAttribute('aria-label', 'Enter person name, press Enter to add');
+
+  addPersonBtn.after(input);
+  input.focus();
+
+  const commit = () => {
+    const name = clean(input.value);
+    input.remove();
+    addPersonBtn.hidden = false;
+    if (name && !state.people.includes(name)) {
+      state.people.push(name);
+      state.selectedPeople.push(name);
+      saveState();
+      renderNameButtons();
+      renderGrid();
+    }
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = ''; input.blur(); }
+  });
 }
-
-savePersonBtn.addEventListener('click', commitAddPerson);
-cancelPersonBtn.addEventListener('click', () => { addPersonForm.hidden = true; });
-newPersonInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter')  commitAddPerson();
-  if (e.key === 'Escape') { addPersonForm.hidden = true; }
-});
 
 // ── UI: Add Card ────────────────────────────────────────────
 const addCardBtn    = document.getElementById('add-card-btn');
@@ -894,69 +1042,6 @@ document.getElementById('fullscreen-toggle').addEventListener('click', function 
   this.setAttribute('aria-pressed', String(on));
   this.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Toggle fullscreen');
   document.getElementById('fullscreen-icon').textContent = on ? '✕' : '⛶';
-});
-
-// ── UI: Export ──────────────────────────────────────────────
-document.getElementById('export-btn').addEventListener('click', () => {
-  const data = {
-    version:        '1.0',
-    exported:       new Date().toISOString(),
-    people:         state.people.map(String),
-    selectedDay:    state.selectedDay,
-    selectedPeople: state.selectedPeople.map(String),
-    cards:          state.cards.map(c => ({
-      id:          String(c.id),
-      name:        String(c.name),
-      description: String(c.description),
-      time:        Number(c.time),
-      count:       Number(c.count),
-    })),
-    schedule: JSON.parse(JSON.stringify(state.schedule)),
-  };
-
-  // Stringify without any HTML-sensitive characters so the file can't
-  // be exploited if someone opens it in a browser tab.
-  const json = JSON.stringify(data, null, 2)
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026');
-
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `cm_schedule_${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast('Config exported');
-});
-
-// ── UI: Import ──────────────────────────────────────────────
-document.getElementById('import-btn').addEventListener('click', () => {
-  document.getElementById('import-file').click();
-});
-
-document.getElementById('import-file').addEventListener('change', function () {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = evt => {
-    try {
-      const parsed = JSON.parse(evt.target.result);
-      // Re-use loadState's validation by temporarily writing to localStorage
-      // (avoids duplicating validation logic)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-      loadState();
-      renderAll();
-      showToast('Config imported');
-    } catch (err) {
-      showToast('Import failed: invalid file');
-      // Restore previous state
-      saveState();
-    }
-  };
-  reader.readAsText(file);
-  this.value = '';
 });
 
 // ── UI: Clear Day ───────────────────────────────────────────

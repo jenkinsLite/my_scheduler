@@ -279,23 +279,73 @@ nav ul {
 
 /* Name buttons */
 .name-btn {
-  background: var(--clr-name-btn-bg);
-  color: var(--clr-name-btn-text);
-  border: 2px solid transparent;
+  background: var(--clr-accent-lt);
+  color: var(--clr-primary);
+  border: 2px solid var(--clr-border);
   padding: 0.4rem 0.85rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--fs-sm);
   font-weight: 600;
   transition: all 0.15s;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 .name-btn:hover { filter: brightness(1.07); border-color: var(--clr-primary); }
 .name-btn.selected,
 .name-btn[aria-pressed="true"] {
+  background: var(--clr-name-btn-bg);
+  color: var(--clr-name-btn-text);
   border-color: var(--clr-primary);
-  background: var(--clr-accent-lt);
   box-shadow: 0 0 0 2px var(--clr-primary-lt);
-  transform: translateY(-1px);
+  transform: translateY(0);
+}
+
+/* Name button inline edit (double-click) */
+.name-btn-edit-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.name-btn-edit-input {
+  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--clr-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  min-width: 60px;
+  max-width: 130px;
+  cursor: text;
+}
+.name-btn-edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--clr-primary-lt);
+}
+
+.name-btn-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--clr-border);
+  background: transparent;
+  color: var(--clr-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.name-btn-delete-btn:hover {
+  background: var(--clr-danger-lt);
+  border-color: var(--clr-danger);
+  color: var(--clr-danger);
 }
 
 /* Add / generic buttons */
@@ -311,6 +361,21 @@ nav ul {
   transition: background 0.15s;
 }
 .add-btn:hover { background: var(--clr-primary-lt); }
+
+/* + Person button morphed into an inline input */
+.add-btn-input {
+  border-style: solid;
+  background: var(--clr-surface);
+  cursor: text;
+  min-width: 90px;
+  color: var(--clr-text);
+  font-weight: 400;
+}
+.add-btn-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--clr-primary-lt);
+  background: var(--clr-surface);
+}
 
 /* Inline form (add person) */
 .inline-form {
@@ -659,6 +724,14 @@ nav ul {
   align-items: center;
   gap: 0.6rem;
   flex-shrink: 0;
+  padding-left: calc(0.85rem * 2 + 1em + 4px); /* one day-btn width offset */
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
 }
 
 .zoom-label {
@@ -782,14 +855,15 @@ nav ul {
   border-radius: var(--radius-sm);
   padding: 0.25rem 0.4rem;
   overflow: hidden;
-  cursor: default;
+  cursor: grab;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
   transition: filter 0.15s, box-shadow 0.15s;
   z-index: 3;
 }
-.placed-card:hover { box-shadow: var(--shadow-md); filter: brightness(0.94); }
+.placed-card:hover { box-shadow: var(--shadow-md); filter: brightness(0.94); cursor: grab; }
+.placed-card.dragging { opacity: 0.35; cursor: grabbing; pointer-events: none; }
 
 .placed-name {
   font-size: var(--fs-xs);

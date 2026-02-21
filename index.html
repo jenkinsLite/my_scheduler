@@ -32,63 +32,26 @@
   <nav role="navigation" aria-label="Application controls">
     <ul role="list">
       <li>
-        <button class="nav-btn" id="export-btn" aria-label="Export schedule as JSON file">
-          Export Config
-        </button>
-      </li>
-      <li>
-        <button class="nav-btn" id="import-btn" aria-label="Import schedule from JSON file">
-          Import Config
-        </button>
-      </li>
-      <li>
         <button class="nav-btn" id="clear-btn" aria-label="Clear all placements for selected day">
           Clear Day
         </button>
       </li>
     </ul>
-    <!-- Hidden file input for import -->
-    <input type="file" id="import-file" accept=".json" aria-hidden="true" tabindex="-1" />
   </nav>
 
   <!-- ===== MAIN ===== -->
   <main id="main-section" role="main" aria-label="Scheduler workspace">
 
-    <!-- TOP PANEL: Day buttons + Name buttons (~35% height) -->
-    <section class="top-panel" aria-label="Day and person selection">
+    <!-- TOP PANEL: Name buttons (~35% height) -->
+    <section class="top-panel" aria-label="Person selection">
       <div class="top-row">
 
-        <div class="day-group">
-          <span class="panel-label" id="day-label">Day:</span>
-          <div class="btn-group" role="group" aria-labelledby="day-label">
-            <button class="day-btn active" data-day="Monday"  aria-pressed="true">Mon</button>
-            <button class="day-btn"        data-day="Tuesday" aria-pressed="false">Tue</button>
-            <button class="day-btn"        data-day="Wednesday" aria-pressed="false">Wed</button>
-            <button class="day-btn"        data-day="Thursday" aria-pressed="false">Thu</button>
-            <button class="day-btn"        data-day="Friday"  aria-pressed="false">Fri</button>
-          </div>
-        </div>
-
         <div class="name-group">
-          <span class="panel-label" id="people-label">People:</span>
-          <div class="btn-group" role="group" aria-labelledby="people-label">
-            <div id="name-btn-list" class="name-btn-list"></div>
-            <button id="add-person-btn" class="add-btn" aria-label="Add a new person">
+          <div class="btn-group" role="group" aria-label="Select people">
+            <button id="add-person-btn" class="add-btn" aria-label="Click to add a new person">
               + Person
             </button>
-          </div>
-          <!-- Inline add-person input (hidden by default) -->
-          <div id="add-person-form" class="inline-form" hidden>
-            <label for="new-person-name" class="sr-only">Person name</label>
-            <input
-              type="text"
-              id="new-person-name"
-              placeholder="Enter name…"
-              autocomplete="off"
-              maxlength="40"
-            />
-            <button id="save-person-btn" class="btn-primary btn-sm">Add</button>
-            <button id="cancel-person-btn" class="btn-secondary btn-sm">Cancel</button>
+            <div id="name-btn-list" class="name-btn-list"></div>
           </div>
         </div>
 
@@ -140,17 +103,26 @@
       <section class="schedule-section" aria-label="Weekly schedule grid">
 
         <div class="schedule-toolbar">
-          <label for="zoom-slider" class="zoom-label">Zoom</label>
-          <input
-            type="range"
-            id="zoom-slider"
-            min="25"
-            max="250"
-            value="100"
-            step="5"
-            aria-label="Grid zoom level"
-          />
-          <output id="zoom-display" for="zoom-slider" aria-live="polite">100%</output>
+          <div class="btn-group day-btn-group" role="group" aria-label="Select day">
+            <button class="day-btn active" data-day="Monday"  aria-pressed="true">Mon</button>
+            <button class="day-btn"        data-day="Tuesday" aria-pressed="false">Tue</button>
+            <button class="day-btn"        data-day="Wednesday" aria-pressed="false">Wed</button>
+            <button class="day-btn"        data-day="Thursday" aria-pressed="false">Thu</button>
+            <button class="day-btn"        data-day="Friday"  aria-pressed="false">Fri</button>
+          </div>
+          <div class="zoom-controls">
+            <label for="zoom-slider" class="zoom-label">Zoom</label>
+            <input
+              type="range"
+              id="zoom-slider"
+              min="25"
+              max="250"
+              value="100"
+              step="5"
+              aria-label="Grid zoom level"
+            />
+            <output id="zoom-display" for="zoom-slider" aria-live="polite">100%</output>
+          </div>
         </div>
 
         <div class="schedule-wrapper" id="schedule-wrapper" tabindex="0" aria-label="Schedule grid — scroll to navigate">
