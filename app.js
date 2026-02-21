@@ -880,18 +880,28 @@ function startDragTouch(e, cardId, srcEl) {
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return;
 
-  e.preventDefault();
-  const touch      = e.touches[0];
-  const rect       = srcEl.getBoundingClientRect();
-  const grabOffsetY = touch.clientY - rect.top;
+  // Don't prevent default at touchstart — allows native scroll until drag is committed
+  const touch0      = e.touches[0];
+  const startX      = touch0.clientX;
+  const startY      = touch0.clientY;
+  const rect        = srcEl.getBoundingClientRect();
+  const grabOffsetY = touch0.clientY - rect.top;
 
-  srcEl.classList.add('dragging');
-  const ghost = buildGhost(card, rect.width);
-
-  dragState = { cardId, ghost, grabOffsetY };
+  let ghost     = null;
+  let committed = false;
 
   const move = e => {
     const t = e.touches[0];
+    if (!committed) {
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (Math.hypot(dx, dy) < 8) return; // wait for clear drag intent
+      committed = true;
+      srcEl.classList.add('dragging');
+      ghost = buildGhost(card, rect.width);
+      dragState = { cardId, ghost, grabOffsetY };
+    }
+    e.preventDefault(); // stop scroll once drag is committed
     ghost.style.left = (t.clientX - 16) + 'px';
     ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
     highlightColumn(t.clientX, t.clientY);
@@ -900,6 +910,9 @@ function startDragTouch(e, cardId, srcEl) {
   const end = e => {
     document.removeEventListener('touchmove', move);
     document.removeEventListener('touchend', end);
+
+    if (!committed) return; // was a tap or scroll, not a drag
+
     clearHighlight();
     ghost.remove();
     srcEl.classList.remove('dragging');
