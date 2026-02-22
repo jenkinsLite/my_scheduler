@@ -456,16 +456,22 @@ nav ul {
   padding: var(--pad);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
-  overflow: hidden;
 
-  /* Mobile: explicit height so card-list flex:1 can scroll correctly */
-  height: clamp(220px, 48vh, 420px);
+  /* Mobile: whole panel scrolls — button/form scroll away, cards always reachable */
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: clamp(220px, 48vh, 420px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--clr-border) transparent;
 }
+.left-panel::-webkit-scrollbar { width: 6px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--clr-border); border-radius: 3px; }
 
 @media (min-width: 768px) {
   .left-panel {
     flex: 0 0 35%;
-    height: auto; /* desktop height is driven by flex layout */
+    max-height: none;
+    overflow: hidden; /* desktop: card-list handles its own scroll */
   }
 }
 
@@ -553,10 +559,11 @@ nav ul {
   scrollbar-color: var(--clr-border) transparent;
 }
 
-/* Mobile: card-list fills remaining panel height and scrolls freely */
+/* Mobile: card-list is natural height; the panel itself scrolls */
 @media (max-width: 767px) {
   .card-list {
-    flex: 1;
+    flex: none;
+    overflow-y: visible;
   }
 }
 .card-list::-webkit-scrollbar { width: 6px; }
