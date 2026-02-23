@@ -156,7 +156,7 @@ function renderNameButtons() {
     const sel = state.selectedPeople.includes(person);
     btn.classList.toggle('selected', sel);
     btn.setAttribute('aria-pressed', String(sel));
-    btn.setAttribute('aria-label', `${person} — click to toggle, double-click to rename`);
+    btn.setAttribute('aria-label', `${person} — click to toggle, double-click or long-press to rename`);
 
     btn.addEventListener('click', () => {
       const idx = state.selectedPeople.indexOf(person);
@@ -176,6 +176,17 @@ function renderNameButtons() {
       e.preventDefault();
       inlineEditPerson(btn, person);
     });
+
+    // Long-press (touch) triggers the same inline edit
+    let longPressTimer = null;
+    btn.addEventListener('touchstart', () => {
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        inlineEditPerson(btn, person);
+      }, 500);
+    }, { passive: true });
+    btn.addEventListener('touchend',  () => { clearTimeout(longPressTimer); longPressTimer = null; });
+    btn.addEventListener('touchmove', () => { clearTimeout(longPressTimer); longPressTimer = null; });
 
     list.appendChild(btn);
   });
@@ -204,6 +215,12 @@ function inlineEditPerson(btn, oldName) {
   input.focus();
   input.select();
 
+  // After a long-press the flex layout shifts while the finger is still down,
+  // causing a spurious blur as soon as the touch lifts. Ignore blur for a
+  // short window so that reflow-induced blurs can't immediately close the edit.
+  let blurEnabled = false;
+  setTimeout(() => { blurEnabled = true; }, 350);
+
   const commit = () => {
     const newName = clean(input.value);
     if (newName && newName !== oldName && !state.people.includes(newName)) {
@@ -223,7 +240,7 @@ function inlineEditPerson(btn, oldName) {
     renderGrid();
   };
 
-  input.addEventListener('blur', commit);
+  input.addEventListener('blur', () => { if (blurEnabled) commit(); });
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter')  input.blur();
     if (e.key === 'Escape') renderNameButtons();

@@ -241,6 +241,13 @@ nav ul {
   }
 }
 
+#main-section.fullscreen .top-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+}
+
 .day-group, .name-group {
   display: flex;
   align-items: center;
