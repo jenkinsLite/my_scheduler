@@ -484,13 +484,19 @@ function inlineEditCount(badge, card) {
   badge.replaceWith(input);
   input.focus(); input.select();
 
-  const commit = () => {
+  const clamp = () => {
     const v = parseInt(input.value);
-    if (!isNaN(v) && v >= 1) card.count = v;
+    if (!isNaN(v)) input.value = Math.min(5, Math.max(1, v));
+  };
+  const commit = () => {
+    clamp();
+    const v = parseInt(input.value);
+    if (!isNaN(v)) card.count = Math.min(5, Math.max(1, v));
     saveState();
     renderCards();
     renderGrid();
   };
+  input.addEventListener('input', clamp);
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter')  input.blur();
@@ -1183,6 +1189,10 @@ const newCardName   = document.getElementById('new-card-name');
 const newCardDesc   = document.getElementById('new-card-desc');
 const newCardTime   = document.getElementById('new-card-time');
 const newCardCount  = document.getElementById('new-card-count');
+newCardCount.addEventListener('input', () => {
+  const v = parseInt(newCardCount.value);
+  if (!isNaN(v)) newCardCount.value = Math.min(5, Math.max(1, v));
+});
 const saveCardBtn   = document.getElementById('save-card-btn');
 const cancelCardBtn = document.getElementById('cancel-card-btn');
 const newCardPerson  = document.getElementById('new-card-person');
@@ -1222,7 +1232,7 @@ function saveNewCard() {
   const name  = clean(newCardName.value);
   const desc  = clean(newCardDesc.value);
   const time  = parseInt(newCardTime.value);
-  const count = parseInt(newCardCount.value) || 1;
+  const count = Math.min(5, Math.max(1, parseInt(newCardCount.value) || 1));
 
   if (!name)                    { newCardName.focus();  showToast('Please enter a name'); return; }
   if (isNaN(time) || time < 5)  { newCardTime.focus();  showToast('Enter duration ≥ 5 min'); return; }
