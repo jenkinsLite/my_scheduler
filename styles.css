@@ -545,23 +545,6 @@ nav ul {
 }
 .field-row .field-group { flex: 1; }
 
-/* Color input in new-card form */
-.field-group--color { flex: 0 0 auto; }
-.field-group--color input[type="color"] {
-  width: 44px;
-  height: 32px;
-  padding: 2px 3px;
-  cursor: pointer;
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  background: var(--clr-surface);
-}
-.field-group--color input[type="color"]:focus {
-  border-color: var(--clr-primary);
-  outline: none;
-  box-shadow: 0 0 0 2px var(--clr-primary-lt);
-}
-
 .field-group label {
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -570,7 +553,8 @@ nav ul {
   letter-spacing: 0.05em;
 }
 
-.field-group input {
+.field-group input,
+.field-group select {
   width: 100%;
   padding: 0.38rem 0.6rem;
   border: 1px solid var(--clr-border);
@@ -579,7 +563,8 @@ nav ul {
   background: var(--clr-surface);
   color: var(--clr-text);
 }
-.field-group input:focus {
+.field-group input:focus,
+.field-group select:focus {
   border-color: var(--clr-primary);
   outline: none;
   box-shadow: 0 0 0 2px var(--clr-primary-lt);
@@ -753,8 +738,8 @@ nav ul {
   color: var(--clr-danger);
 }
 
-/* Color swatch on activity card (actions row) */
-.card-color-input {
+/* Color swatch inside the person name edit wrapper */
+.person-color-input {
   width: 22px;
   height: 22px;
   padding: 1px;
@@ -765,7 +750,19 @@ nav ul {
   flex-shrink: 0;
   align-self: center;
 }
-.card-color-input:hover { border-color: var(--clr-primary); }
+.person-color-input:hover { border-color: var(--clr-primary); }
+
+/* Compact select for assigning a person inline on a card */
+.inline-edit-select {
+  padding: 0.15rem 0.3rem;
+  border: 1px solid var(--clr-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  cursor: pointer;
+  max-width: 100px;
+}
 
 /* Inline edit input inside card */
 .inline-edit-input {

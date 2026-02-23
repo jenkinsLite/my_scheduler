@@ -15,6 +15,11 @@ const STORAGE_KEY  = 'cm_scheduler_v1';
 const BASE_UNIT_PX = 12;   // px per slot at 100 % zoom
 let   _idCounter   = Date.now();
 
+const PERSON_COLORS = [
+  '#c8e6d4','#b8d4e8','#e8d4c8','#d4c8e8','#e8e4c8',
+  '#c8d4e8','#e8c8d4','#c8e8e4','#ddc8e8','#e4d0c8'
+];
+
 // ── State ──────────────────────────────────────────────────
 let state = {
   people:        [],
@@ -22,7 +27,8 @@ let state = {
   selectedPeople:[],
   cards:         [],
   // schedule[day][personName] = [ { instanceId, cardId, slotIndex } ]
-  schedule:      {}
+  schedule:      {},
+  personColors:  {}
 };
 
 let zoomLevel  = 100;  // percent
@@ -82,8 +88,8 @@ function parseCard(c) {
     name:        clean(c.name  || ''),
     description: clean(c.description || ''),
     time:        Math.max(5, Math.min(480, parseInt(c.time) || 30)),
-    count:       Math.max(1, Math.min(99,  parseInt(c.count) || 1)),
-    color:       /^#[0-9a-fA-F]{3,6}$/.test(c.color) ? String(c.color) : '',
+    count:          Math.max(1, Math.min(99,  parseInt(c.count) || 1)),
+    assignedPerson: clean(String(c.assignedPerson || '')),
   };
 }
 
@@ -105,6 +111,14 @@ function loadState() {
       : [];
 
     state.cards = Array.isArray(p.cards) ? p.cards.map(parseCard) : [];
+
+    state.personColors = {};
+    if (p.personColors && typeof p.personColors === 'object') {
+      Object.entries(p.personColors).forEach(([k, v]) => {
+        if (typeof k === 'string' && /^#[0-9a-fA-F]{3,6}$/.test(v))
+          state.personColors[clean(k)] = v;
+      });
+    }
 
     // Reconstruct schedule, validating slot indices
     state.schedule = {};
@@ -158,6 +172,8 @@ function renderNameButtons() {
     btn.classList.toggle('selected', sel);
     btn.setAttribute('aria-pressed', String(sel));
     btn.setAttribute('aria-label', `${person} — click to toggle, double-click or long-press to rename`);
+    const pColor = state.personColors[person];
+    if (pColor) btn.style.backgroundColor = pColor;
 
     btn.addEventListener('click', () => {
       const idx = state.selectedPeople.indexOf(person);
@@ -191,10 +207,26 @@ function renderNameButtons() {
 
     list.appendChild(btn);
   });
+
+  // Keep the person dropdown in sync with the current people list
+  const personSel = document.getElementById('new-card-person');
+  if (personSel) {
+    const prev = personSel.value;
+    personSel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = ''; noneOpt.textContent = '— None —';
+    personSel.appendChild(noneOpt);
+    state.people.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      personSel.appendChild(opt);
+    });
+    personSel.value = state.people.includes(prev) ? prev : '';
+  }
 }
 
 function inlineEditPerson(btn, oldName) {
-  // Wrapper holds the input + delete button side by side
+  // Wrapper holds the input + color picker + delete button side by side
   const wrapper = document.createElement('div');
   wrapper.className = 'name-btn-edit-wrapper';
 
@@ -205,12 +237,21 @@ function inlineEditPerson(btn, oldName) {
   input.maxLength = 40;
   input.setAttribute('aria-label', 'Rename person — press Enter to save, Escape to cancel');
 
+  const colorPick = document.createElement('input');
+  colorPick.type = 'color';
+  colorPick.className = 'person-color-input';
+  colorPick.value = state.personColors[oldName]
+    || PERSON_COLORS[Math.max(0, state.people.indexOf(oldName)) % PERSON_COLORS.length];
+  colorPick.title = 'Change person color';
+  colorPick.setAttribute('aria-label', `Color for ${oldName}`);
+
   const delBtn = document.createElement('button');
   delBtn.className = 'name-btn-delete-btn';
   delBtn.textContent = '×';
   delBtn.setAttribute('aria-label', `Delete ${oldName}`);
 
   wrapper.appendChild(input);
+  wrapper.appendChild(colorPick);
   wrapper.appendChild(delBtn);
   btn.replaceWith(wrapper);
   input.focus();
@@ -223,7 +264,8 @@ function inlineEditPerson(btn, oldName) {
   setTimeout(() => { blurEnabled = true; }, 350);
 
   const commit = () => {
-    const newName = clean(input.value);
+    const newName  = clean(input.value);
+    const newColor = colorPick.value;
     if (newName && newName !== oldName && !state.people.includes(newName)) {
       const pi = state.people.indexOf(oldName);
       if (pi > -1) state.people[pi] = newName;
@@ -235,22 +277,43 @@ function inlineEditPerson(btn, oldName) {
           delete state.schedule[day][oldName];
         }
       });
-      saveState();
+      state.personColors[newName] = newColor;
+      delete state.personColors[oldName];
+      state.cards.forEach(c => { if (c.assignedPerson === oldName) c.assignedPerson = newName; });
+    } else if (newName) {
+      state.personColors[oldName] = newColor;
     }
+    saveState();
     renderNameButtons();
+    renderCards();
     renderGrid();
   };
 
+  // mousedown fires before the text input's blur event, so we suppress commit
+  // here. change fires when the user finishes picking; blur on colorPick
+  // handles the cancel case (Chrome inline picker dismissed without picking).
+  colorPick.addEventListener('mousedown', () => {
+    blurEnabled = false;
+    setTimeout(() => { blurEnabled = true; }, 5000); // safety if OS dialog is cancelled
+  });
+  colorPick.addEventListener('change', () => {
+    blurEnabled = true;
+    input.focus();
+  });
+  colorPick.addEventListener('blur', () => {
+    blurEnabled = true; // re-enable if color dialog cancelled without picking
+  });
+
   input.addEventListener('blur', () => { if (blurEnabled) commit(); });
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Enter')  commit();
     if (e.key === 'Escape') renderNameButtons();
   });
 
   // Prevent input blur when clicking delete so the click still fires
   delBtn.addEventListener('mousedown', e => e.preventDefault());
   delBtn.addEventListener('click', () => {
-    input.removeEventListener('blur', commit); // prevent commit from running on removal
+    blurEnabled = false; // prevent spurious commit when wrapper is removed
     wrapper.remove();
     deletePerson(oldName);
   });
@@ -262,8 +325,11 @@ function deletePerson(name) {
   DAYS.forEach(day => {
     if (state.schedule[day]) delete state.schedule[day][name];
   });
+  delete state.personColors[name];
+  state.cards.forEach(c => { if (c.assignedPerson === name) c.assignedPerson = ''; });
   saveState();
   renderNameButtons();
+  renderCards();
   renderGrid();
 }
 
@@ -284,7 +350,7 @@ function buildCardEl(card) {
   el.setAttribute('role', 'listitem');
   el.dataset.cardId = card.id;
   el.style.minHeight = heightPx + 'px';
-  el.style.backgroundColor = card.color || '';
+  el.style.backgroundColor = state.personColors[card.assignedPerson] || '';
   el.setAttribute('aria-label',
     `${card.name}: ${card.description}. ${card.time} min. ${placed}/${card.count} placed. Drag to schedule.`);
 
@@ -337,19 +403,17 @@ function buildCardEl(card) {
   const actions = el.appendChild(document.createElement('div'));
   actions.className = 'card-actions';
 
-  const colorInput = actions.appendChild(document.createElement('input'));
-  colorInput.type = 'color';
-  colorInput.className = 'card-color-input';
-  colorInput.value = card.color || '#fffef8';
-  colorInput.title = 'Change card color';
-  colorInput.setAttribute('aria-label', `Change color for ${card.name}`);
-  colorInput.addEventListener('click', e => e.stopPropagation());
-  colorInput.addEventListener('change', e => {
+  const assignBtn = actions.appendChild(document.createElement('button'));
+  assignBtn.className = 'card-action-btn';
+  assignBtn.textContent = card.assignedPerson || 'Person';
+  assignBtn.setAttribute('aria-label', `Assign person for ${card.name}`);
+  assignBtn.addEventListener('click', e => {
     e.stopPropagation();
-    card.color = colorInput.value;
-    el.style.backgroundColor = card.color;
-    saveState();
-    renderGrid();
+    if (state.people.length === 0) {
+      showToast('Add people using + Person before assigning');
+      return;
+    }
+    inlineEditAssignedPerson(assignBtn, card);
   });
 
   const countBtn = actions.appendChild(document.createElement('button'));
@@ -366,11 +430,11 @@ function buildCardEl(card) {
 
   // ── drag to grid listeners (body only, not handle/buttons/inputs) ──
   el.addEventListener('mousedown', e => {
-    if (e.target.closest('button, input, .card-drag-handle')) return;
+    if (e.target.closest('button, input, select, .card-drag-handle')) return;
     startDrag(e, card.id, el);
   });
   el.addEventListener('touchstart', e => {
-    if (e.target.closest('button, input, .card-drag-handle')) return;
+    if (e.target.closest('button, input, select, .card-drag-handle')) return;
     startDragTouch(e, card.id, el);
   }, { passive: false });
 
@@ -431,6 +495,45 @@ function inlineEditCount(badge, card) {
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter')  input.blur();
     if (e.key === 'Escape') renderCards();
+  });
+}
+
+function inlineEditAssignedPerson(btn, card) {
+  const select = document.createElement('select');
+  select.className = 'inline-edit-select';
+
+  const noneOpt = document.createElement('option');
+  noneOpt.value = '';
+  noneOpt.textContent = '— None —';
+  select.appendChild(noneOpt);
+
+  state.people.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    if (p === card.assignedPerson) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  select.value = card.assignedPerson;
+  btn.replaceWith(select);
+  select.focus();
+
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    card.assignedPerson = select.value;
+    saveState();
+    renderCards();
+    renderGrid();
+  };
+
+  select.addEventListener('change', commit);
+  // Defer blur-commit so 'change' always fires first (avoids browser ordering differences)
+  select.addEventListener('blur', () => setTimeout(commit, 0));
+  select.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { committed = true; renderCards(); }
   });
 }
 
@@ -553,7 +656,8 @@ function placedCardEl(card, placement, person, slotsContainer) {
   el.className = 'placed-card';
   el.style.top    = topPx    + 'px';
   el.style.height = heightPx + 'px';
-  if (card.color) el.style.backgroundColor = card.color;
+  const personColor = state.personColors[card.assignedPerson];
+  if (personColor) el.style.backgroundColor = personColor;
   el.dataset.instanceId = placement.instanceId;
   el.setAttribute('aria-label',
     `${card.name} at ${minutesToLabel(placement.slotIndex * SLOT_MIN)}, ${card.time} min. Drag to move, click × to remove.`);
@@ -1045,6 +1149,7 @@ function startAddPerson() {
     if (name && !state.people.includes(name)) {
       state.people.push(name);
       state.selectedPeople.push(name);
+      state.personColors[name] = PERSON_COLORS[(state.people.length - 1) % PERSON_COLORS.length];
       saveState();
       renderNameButtons();
       renderGrid();
@@ -1067,7 +1172,7 @@ const newCardTime   = document.getElementById('new-card-time');
 const newCardCount  = document.getElementById('new-card-count');
 const saveCardBtn   = document.getElementById('save-card-btn');
 const cancelCardBtn = document.getElementById('cancel-card-btn');
-const newCardColor   = document.getElementById('new-card-color');
+const newCardPerson  = document.getElementById('new-card-person');
 
 addCardBtn.addEventListener('click', () => {
   const open = newCardForm.hidden;
@@ -1078,7 +1183,7 @@ addCardBtn.addEventListener('click', () => {
     newCardDesc.value  = '';
     newCardTime.value  = '';
     newCardCount.value = '1';
-    newCardColor.value = '#fffef8';
+    newCardPerson.value = '';
     newCardName.focus();
   }
 });
@@ -1090,7 +1195,7 @@ cancelCardBtn.addEventListener('click', () => {
 });
 
 newCardForm.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.target !== saveCardBtn && e.target !== cancelCardBtn) {
+  if (e.key === 'Enter' && e.target.tagName !== 'SELECT' && e.target !== saveCardBtn && e.target !== cancelCardBtn) {
     e.preventDefault();
     saveNewCard();
   }
@@ -1109,8 +1214,8 @@ function saveNewCard() {
   if (!name)                    { newCardName.focus();  showToast('Please enter a name'); return; }
   if (isNaN(time) || time < 5)  { newCardTime.focus();  showToast('Enter duration ≥ 5 min'); return; }
 
-  const color = newCardColor.value || '';
-  const card = { id: uid(), name, description: desc, time, count: Math.max(1, count), color };
+  const assignedPerson = newCardPerson.value || '';
+  const card = { id: uid(), name, description: desc, time, count: Math.max(1, count), assignedPerson };
   state.cards.push(card);
   saveState();
   renderCards();
