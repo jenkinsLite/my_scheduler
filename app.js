@@ -83,6 +83,7 @@ function parseCard(c) {
     description: clean(c.description || ''),
     time:        Math.max(5, Math.min(480, parseInt(c.time) || 30)),
     count:       Math.max(1, Math.min(99,  parseInt(c.count) || 1)),
+    color:       /^#[0-9a-fA-F]{3,6}$/.test(c.color) ? String(c.color) : '',
   };
 }
 
@@ -283,6 +284,7 @@ function buildCardEl(card) {
   el.setAttribute('role', 'listitem');
   el.dataset.cardId = card.id;
   el.style.minHeight = heightPx + 'px';
+  el.style.backgroundColor = card.color || '';
   el.setAttribute('aria-label',
     `${card.name}: ${card.description}. ${card.time} min. ${placed}/${card.count} placed. Drag to schedule.`);
 
@@ -334,6 +336,21 @@ function buildCardEl(card) {
   // ── actions ──
   const actions = el.appendChild(document.createElement('div'));
   actions.className = 'card-actions';
+
+  const colorInput = actions.appendChild(document.createElement('input'));
+  colorInput.type = 'color';
+  colorInput.className = 'card-color-input';
+  colorInput.value = card.color || '#fffef8';
+  colorInput.title = 'Change card color';
+  colorInput.setAttribute('aria-label', `Change color for ${card.name}`);
+  colorInput.addEventListener('click', e => e.stopPropagation());
+  colorInput.addEventListener('change', e => {
+    e.stopPropagation();
+    card.color = colorInput.value;
+    el.style.backgroundColor = card.color;
+    saveState();
+    renderGrid();
+  });
 
   const countBtn = actions.appendChild(document.createElement('button'));
   countBtn.className = 'card-action-btn';
@@ -536,6 +553,7 @@ function placedCardEl(card, placement, person, slotsContainer) {
   el.className = 'placed-card';
   el.style.top    = topPx    + 'px';
   el.style.height = heightPx + 'px';
+  if (card.color) el.style.backgroundColor = card.color;
   el.dataset.instanceId = placement.instanceId;
   el.setAttribute('aria-label',
     `${card.name} at ${minutesToLabel(placement.slotIndex * SLOT_MIN)}, ${card.time} min. Drag to move, click × to remove.`);
@@ -1049,6 +1067,7 @@ const newCardTime   = document.getElementById('new-card-time');
 const newCardCount  = document.getElementById('new-card-count');
 const saveCardBtn   = document.getElementById('save-card-btn');
 const cancelCardBtn = document.getElementById('cancel-card-btn');
+const newCardColor   = document.getElementById('new-card-color');
 
 addCardBtn.addEventListener('click', () => {
   const open = newCardForm.hidden;
@@ -1059,6 +1078,7 @@ addCardBtn.addEventListener('click', () => {
     newCardDesc.value  = '';
     newCardTime.value  = '';
     newCardCount.value = '1';
+    newCardColor.value = '#fffef8';
     newCardName.focus();
   }
 });
@@ -1089,7 +1109,8 @@ function saveNewCard() {
   if (!name)                    { newCardName.focus();  showToast('Please enter a name'); return; }
   if (isNaN(time) || time < 5)  { newCardTime.focus();  showToast('Enter duration ≥ 5 min'); return; }
 
-  const card = { id: uid(), name, description: desc, time, count: Math.max(1, count) };
+  const color = newCardColor.value || '';
+  const card = { id: uid(), name, description: desc, time, count: Math.max(1, count), color };
   state.cards.push(card);
   saveState();
   renderCards();

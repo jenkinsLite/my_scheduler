@@ -541,8 +541,26 @@ nav ul {
 .field-row {
   display: flex;
   gap: 0.5rem;
+  align-items: flex-end;
 }
 .field-row .field-group { flex: 1; }
+
+/* Color input in new-card form */
+.field-group--color { flex: 0 0 auto; }
+.field-group--color input[type="color"] {
+  width: 44px;
+  height: 32px;
+  padding: 2px 3px;
+  cursor: pointer;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+}
+.field-group--color input[type="color"]:focus {
+  border-color: var(--clr-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--clr-primary-lt);
+}
 
 .field-group label {
   font-size: var(--fs-xs);
@@ -734,6 +752,20 @@ nav ul {
   border-color: var(--clr-danger);
   color: var(--clr-danger);
 }
+
+/* Color swatch on activity card (actions row) */
+.card-color-input {
+  width: 22px;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+  flex-shrink: 0;
+  align-self: center;
+}
+.card-color-input:hover { border-color: var(--clr-primary); }
 
 /* Inline edit input inside card */
 .inline-edit-input {
