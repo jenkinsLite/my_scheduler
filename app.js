@@ -822,7 +822,7 @@ function dropOnColumn(clientY, colEl, cardId) {
   const slotsEl = colEl.querySelector('.col-slots');
   if (!slotsEl) return false;
   const rect = slotsEl.getBoundingClientRect();
-  const rawY  = clientY - rect.top + slotsEl.closest('.schedule-wrapper').scrollTop;
+  const rawY  = clientY - rect.top;
   // Adjust for ghost offset so card top aligns correctly
   const offsetY = dragState ? (dragState.grabOffsetY || 0) : 0;
   const slotIndex = Math.floor((rawY - offsetY) / unitPx());

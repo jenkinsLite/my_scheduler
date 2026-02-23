@@ -824,6 +824,7 @@ nav ul {
   left: 0;
   z-index: 10;
   overflow: hidden;
+  align-self: flex-start;
 }
 
 .time-label {
@@ -844,6 +845,7 @@ nav ul {
   flex: 1;
   display: flex;
   min-width: 0;
+  align-self: flex-start;
 }
 
 .grid-column {
