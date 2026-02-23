@@ -749,11 +749,13 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
     ghost.style.left = (e.clientX - 16) + 'px';
     ghost.style.top  = (e.clientY - grabOffsetY) + 'px';
     highlightColumn(e.clientX, e.clientY);
+    autoScrollUpdate(e.clientY);
   };
 
   const up = e => {
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
+    autoScrollStop();
     clearHighlight();
     ghost.remove();
     srcEl.classList.remove('dragging');
@@ -795,11 +797,13 @@ function startGridCardDragTouch(e, card, placement, person, srcEl) {
     ghost.style.left = (t.clientX - 16) + 'px';
     ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
     highlightColumn(t.clientX, t.clientY);
+    autoScrollUpdate(t.clientY);
   };
 
   const end = e => {
     document.removeEventListener('touchmove', move);
     document.removeEventListener('touchend', end);
+    autoScrollStop();
     clearHighlight();
     ghost.remove();
     srcEl.classList.remove('dragging');
@@ -833,6 +837,43 @@ function buildGhost(card, w) {
 
   document.body.appendChild(ghost);
   return ghost;
+}
+
+// ── Auto-scroll while dragging near edges of schedule-wrapper ──
+let _autoScrollY  = null;
+let _autoScrollRAF = null;
+
+function autoScrollUpdate(clientY) {
+  _autoScrollY = clientY;
+  if (!_autoScrollRAF) _autoScrollRAF = requestAnimationFrame(_autoScrollTick);
+}
+
+function autoScrollStop() {
+  _autoScrollY = null;
+  if (_autoScrollRAF) { cancelAnimationFrame(_autoScrollRAF); _autoScrollRAF = null; }
+}
+
+function _autoScrollTick() {
+  _autoScrollRAF = null;
+  if (_autoScrollY === null) return;
+  const wrapper = document.getElementById('schedule-wrapper');
+  const r       = wrapper.getBoundingClientRect();
+  const ZONE    = 80;
+  const MAX     = 12;
+  // Clamp zone edges to the visible viewport so the trigger area is never
+  // outside what the user can see (handles partial off-screen wrappers).
+  const top    = Math.max(r.top,    0);
+  const bottom = Math.min(r.bottom, window.innerHeight);
+  let speed = 0;
+  if (_autoScrollY < top    + ZONE) speed = -MAX * (1 - Math.max(0, _autoScrollY - top)    / ZONE);
+  if (_autoScrollY > bottom - ZONE) speed =  MAX * (1 - Math.max(0, bottom - _autoScrollY) / ZONE);
+  if (speed !== 0) {
+    const before = wrapper.scrollTop;
+    wrapper.scrollTop += speed;
+    // If the wrapper didn't move (non-fullscreen: page may be scroll container)
+    if (wrapper.scrollTop === before) window.scrollBy(0, speed);
+  }
+  _autoScrollRAF = requestAnimationFrame(_autoScrollTick);
 }
 
 function dropOnColumn(clientY, colEl, cardId) {
@@ -873,11 +914,13 @@ function startDrag(e, cardId, srcEl) {
     ghost.style.left = (e.clientX - 16) + 'px';
     ghost.style.top  = (e.clientY - grabOffsetY) + 'px';
     highlightColumn(e.clientX, e.clientY);
+    autoScrollUpdate(e.clientY);
   };
 
   const up = e => {
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
+    autoScrollStop();
     clearHighlight();
     ghost.remove();
     srcEl.classList.remove('dragging');
@@ -922,14 +965,16 @@ function startDragTouch(e, cardId, srcEl) {
     ghost.style.left = (t.clientX - 16) + 'px';
     ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
     highlightColumn(t.clientX, t.clientY);
+    autoScrollUpdate(t.clientY);
   };
 
   const end = e => {
     document.removeEventListener('touchmove', move);
     document.removeEventListener('touchend', end);
 
-    if (!committed) return; // was a tap or scroll, not a drag
+    if (!committed) { autoScrollStop(); return; }
 
+    autoScrollStop();
     clearHighlight();
     ghost.remove();
     srcEl.classList.remove('dragging');
