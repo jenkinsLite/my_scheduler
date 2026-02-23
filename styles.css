@@ -872,6 +872,14 @@ nav ul {
   text-overflow: ellipsis;
 }
 
+#main-section.fullscreen .col-header {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  padding: 0.5rem 0.25rem;
+  word-break: break-word;
+}
+
 .col-slots {
   position: relative;
   /* height set dynamically by JS */
