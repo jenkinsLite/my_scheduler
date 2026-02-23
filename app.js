@@ -712,6 +712,13 @@ function placeCard(cardId, person, slotIndex) {
   if (!state.schedule[state.selectedDay][person]) state.schedule[state.selectedDay][person] = [];
   const existing = state.schedule[state.selectedDay][person];
 
+  // One-instance-per-person-per-day check
+  const alreadyOnDay = existing.some(p => p.cardId === cardId);
+  if (alreadyOnDay) {
+    showToast(`${card.name} is already scheduled for ${person} on ${state.selectedDay} — only one per day allowed`);
+    return false;
+  }
+
   // Overlap check
   const overlaps = existing.some(p => {
     const ec = state.cards.find(c => c.id === p.cardId);
