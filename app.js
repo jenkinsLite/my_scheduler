@@ -88,7 +88,7 @@ function parseCard(c) {
     name:        clean(c.name  || ''),
     description: clean(c.description || ''),
     time:        Math.max(5, Math.min(480, parseInt(c.time) || 30)),
-    count:          Math.max(1, Math.min(99,  parseInt(c.count) || 1)),
+    count:          Math.max(1, Math.min(5,   parseInt(c.count) || 1)),
     assignedPerson: clean(String(c.assignedPerson || '')),
   };
 }
@@ -463,7 +463,7 @@ function inlineEditField(span, card, field) {
     }
     saveState();
     renderCards();
-    if (field === 'time') renderGrid();
+    renderGrid();
   };
 
   input.addEventListener('blur', commit);
@@ -477,7 +477,7 @@ function inlineEditCount(badge, card) {
   const input = document.createElement('input');
   input.type = 'number';
   input.value = card.count;
-  input.min = '1'; input.max = '99';
+  input.min = '1'; input.max = '5';
   input.className = 'inline-edit-input';
   input.style.width = '50px';
   input.setAttribute('aria-label', 'Edit count');
@@ -489,7 +489,7 @@ function inlineEditCount(badge, card) {
     if (!isNaN(v) && v >= 1) card.count = v;
     saveState();
     renderCards();
-    updateBadges();
+    renderGrid();
   };
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', e => {
