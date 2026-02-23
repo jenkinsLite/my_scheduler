@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Charlotte Mason Scheduler — a visual weekly schedule planner stored entirely in your browser." />
-  <title>Charlotte Mason Scheduler</title>
+  <meta name="description" content="My Scheduler — a visual weekly schedule planner stored entirely in your browser." />
+  <title>My Scheduler</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
 
   <!-- ===== HEADER ===== -->
   <header role="banner">
-    <h1>Charlotte Mason Scheduler</h1>
+    <h1>My Scheduler</h1>
     <div class="header-controls">
       <button
         id="fullscreen-toggle"
@@ -54,6 +54,16 @@
             <div id="name-btn-list" class="name-btn-list"></div>
           </div>
         </div>
+
+        <button
+          id="exit-fullscreen-btn"
+          class="icon-btn exit-fullscreen-btn"
+          aria-label="Exit fullscreen"
+          title="Exit fullscreen"
+        >
+          <span aria-hidden="true">✕</span>
+          <span class="btn-label">Exit Fullscreen</span>
+        </button>
 
       </div>
     </section>
@@ -140,7 +150,7 @@
 
   <!-- ===== FOOTER ===== -->
   <footer role="contentinfo">
-    <p>Charlotte Mason Scheduler &mdash; All data is stored locally in your browser. No accounts, no servers.</p>
+    <p>My Scheduler &mdash; All data is stored locally in your browser. No accounts, no servers.</p>
   </footer>
 
   <script src="app.js"></script>

@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   Charlotte Mason Scheduler — app.js
+   My Scheduler — app.js
    All state lives in localStorage. No external dependencies.
    ============================================================ */
 
@@ -1049,12 +1049,22 @@ zoomSlider.addEventListener('input', () => {
 });
 
 // ── UI: Fullscreen ──────────────────────────────────────────
-document.getElementById('fullscreen-toggle').addEventListener('click', function () {
-  const main = document.getElementById('main-section');
-  const on   = main.classList.toggle('fullscreen');
-  this.setAttribute('aria-pressed', String(on));
-  this.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Toggle fullscreen');
+function setFullscreen(on) {
+  const main   = document.getElementById('main-section');
+  const toggle = document.getElementById('fullscreen-toggle');
+  main.classList.toggle('fullscreen', on);
+  toggle.setAttribute('aria-pressed', String(on));
+  toggle.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Toggle fullscreen');
   document.getElementById('fullscreen-icon').textContent = on ? '✕' : '⛶';
+}
+
+document.getElementById('fullscreen-toggle').addEventListener('click', function () {
+  const on = !document.getElementById('main-section').classList.contains('fullscreen');
+  setFullscreen(on);
+});
+
+document.getElementById('exit-fullscreen-btn').addEventListener('click', function () {
+  setFullscreen(false);
 });
 
 // ── UI: Clear Day ───────────────────────────────────────────

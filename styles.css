@@ -1,5 +1,5 @@
 /* ============================================================
-   Charlotte Mason Scheduler — styles.css
+   My Scheduler — styles.css
    Mobile-first, accessible, no external dependencies
    ============================================================ */
 
@@ -196,6 +196,24 @@ nav ul {
   z-index: 200;
   background: var(--clr-bg);
   padding: var(--gap);
+}
+
+.exit-fullscreen-btn {
+  display: none;
+}
+
+#main-section.fullscreen .exit-fullscreen-btn {
+  display: flex;
+  margin-left: auto;
+  align-self: center;
+  background: var(--clr-primary-dk);
+  color: #fff;
+  border: 1px solid var(--clr-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+#main-section.fullscreen .exit-fullscreen-btn:hover {
+  background: var(--clr-primary);
 }
 
 /* ===== Top Panel ===== */
