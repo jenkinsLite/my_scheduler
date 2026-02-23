@@ -999,8 +999,14 @@ function _autoScrollTick() {
   if (speed !== 0) {
     const before = wrapper.scrollTop;
     wrapper.scrollTop += speed;
-    // If the wrapper didn't move (non-fullscreen: page may be scroll container)
-    if (wrapper.scrollTop === before) window.scrollBy(0, speed);
+    // If the wrapper didn't move, try the content-area (mobile stacked layout),
+    // then fall back to the page (non-fullscreen desktop).
+    if (wrapper.scrollTop === before) {
+      const ca = document.querySelector('.content-area');
+      const caBefore = ca ? ca.scrollTop : null;
+      if (ca) ca.scrollTop += speed;
+      if (!ca || ca.scrollTop === caBefore) window.scrollBy(0, speed);
+    }
   }
   _autoScrollRAF = requestAnimationFrame(_autoScrollTick);
 }

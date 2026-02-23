@@ -488,7 +488,7 @@ nav ul {
   /* Mobile: whole panel scrolls — button/form scroll away, cards always reachable */
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: clamp(140px, 28vh, 240px);
+  max-height: clamp(120px, 22vh, 200px);
   scrollbar-width: thin;
   scrollbar-color: var(--clr-border) transparent;
 }
@@ -597,14 +597,24 @@ nav ul {
     overflow-y: visible;
   }
 
-  /* Allow content-area to scroll on mobile so the schedule is always reachable */
+  /* Footer wastes vertical space on small screens */
+  footer[role="contentinfo"] {
+    display: none;
+  }
+
+  /* Allow content-area to scroll so the schedule is always reachable */
   .content-area {
     overflow-y: auto;
   }
 
-  /* Prevent the schedule section from collapsing to nothing on small screens */
+  /* Guarantee the schedule section is tall enough to see and drag into */
   .schedule-section {
     flex-shrink: 0;
+    min-height: 320px;
+  }
+
+  /* Guarantee the inner scrollable grid area is never squashed to nothing */
+  .schedule-wrapper {
     min-height: 200px;
   }
 }
