@@ -289,13 +289,15 @@ function inlineEditPerson(btn, oldName) {
     renderGrid();
   };
 
-  // mousedown fires before the text input's blur event, so we suppress commit
-  // here. change fires when the user finishes picking; blur on colorPick
-  // handles the cancel case (Chrome inline picker dismissed without picking).
-  colorPick.addEventListener('mousedown', () => {
+  // mousedown (desktop) and touchstart (touch devices) both fire before the
+  // text input's blur event, so we suppress commit in both. change fires when
+  // the user finishes picking; blur on colorPick re-enables for the cancel case.
+  const suppressBlur = () => {
     blurEnabled = false;
     setTimeout(() => { blurEnabled = true; }, 5000); // safety if OS dialog is cancelled
-  });
+  };
+  colorPick.addEventListener('mousedown', suppressBlur);
+  colorPick.addEventListener('touchstart', suppressBlur, { passive: true });
   colorPick.addEventListener('change', () => {
     blurEnabled = true;
     input.focus();
