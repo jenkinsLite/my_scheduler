@@ -316,8 +316,8 @@ nav ul {
   font-size: var(--fs-sm);
   font-weight: 600;
   transition: all 0.15s;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(0);
+  box-shadow: 0 0 0 2px var(--clr-primary-lt);
 }
 .name-btn:hover { filter: brightness(1.07); border-color: var(--clr-primary); }
 .name-btn.selected,
@@ -325,8 +325,8 @@ nav ul {
   background: var(--clr-name-btn-bg);
   color: var(--clr-name-btn-text);
   border-color: var(--clr-primary);
-  box-shadow: 0 0 0 2px var(--clr-primary-lt);
-  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 /* Name button inline edit (double-click) */
