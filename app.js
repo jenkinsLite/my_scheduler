@@ -1238,6 +1238,9 @@ addCardBtn.addEventListener('click', () => {
   newCardForm.hidden = !open;
   addCardBtn.setAttribute('aria-expanded', String(open));
   if (open) {
+    const mobile = window.innerWidth < 768;
+    newCardCount.style.display    = mobile ? 'none'  : '';
+    newCardCountSel.style.display = mobile ? 'block' : 'none';
     newCardName.value  = '';
     newCardDesc.value  = '';
     newCardTime.value  = '';
