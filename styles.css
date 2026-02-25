@@ -590,6 +590,9 @@ nav ul {
   scrollbar-color: var(--clr-border) transparent;
 }
 
+/* Count select hidden by default (desktop uses number input) */
+.count-select-field { display: none; }
+
 /* Mobile: card-list is natural height; the panel itself scrolls */
 @media (max-width: 767px) {
   .card-list {
@@ -617,6 +620,10 @@ nav ul {
   .schedule-wrapper {
     min-height: 200px;
   }
+
+  /* Count field: swap number input for a select on mobile */
+  .count-input-field  { display: none; }
+  .count-select-field { display: block; }
 }
 .card-list::-webkit-scrollbar { width: 6px; }
 .card-list::-webkit-scrollbar-thumb { background: var(--clr-border); border-radius: 3px; }

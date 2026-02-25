@@ -474,34 +474,65 @@ function inlineEditField(span, card, field) {
 }
 
 function inlineEditCount(badge, card) {
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.value = card.count;
-  input.min = '1'; input.max = '5';
-  input.className = 'inline-edit-input';
-  input.style.width = '50px';
-  input.setAttribute('aria-label', 'Edit count');
-  badge.replaceWith(input);
-  input.focus(); input.select();
+  const isMobile = window.innerWidth < 768;
 
-  const clamp = () => {
-    const v = parseInt(input.value);
-    if (!isNaN(v)) input.value = Math.min(5, Math.max(1, v));
-  };
-  const commit = () => {
-    clamp();
-    const v = parseInt(input.value);
-    if (!isNaN(v)) card.count = Math.min(5, Math.max(1, v));
-    saveState();
-    renderCards();
-    renderGrid();
-  };
-  input.addEventListener('input', clamp);
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  input.blur();
-    if (e.key === 'Escape') renderCards();
-  });
+  if (isMobile) {
+    const select = document.createElement('select');
+    select.className = 'inline-edit-select';
+    for (let i = 1; i <= 5; i++) {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = String(i);
+      if (i === card.count) opt.selected = true;
+      select.appendChild(opt);
+    }
+    badge.replaceWith(select);
+    select.focus();
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      card.count = parseInt(select.value);
+      saveState();
+      renderCards();
+      renderGrid();
+    };
+    select.addEventListener('change', commit);
+    select.addEventListener('blur', () => setTimeout(commit, 0));
+    select.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { committed = true; renderCards(); }
+    });
+  } else {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = card.count;
+    input.min = '1'; input.max = '5';
+    input.className = 'inline-edit-input';
+    input.style.width = '50px';
+    input.setAttribute('aria-label', 'Edit count');
+    badge.replaceWith(input);
+    input.focus(); input.select();
+
+    const clamp = () => {
+      const v = parseInt(input.value);
+      if (!isNaN(v)) input.value = Math.min(5, Math.max(1, v));
+    };
+    const commit = () => {
+      clamp();
+      const v = parseInt(input.value);
+      if (!isNaN(v)) card.count = Math.min(5, Math.max(1, v));
+      saveState();
+      renderCards();
+      renderGrid();
+    };
+    input.addEventListener('input', clamp);
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  input.blur();
+      if (e.key === 'Escape') renderCards();
+    });
+  }
 }
 
 function inlineEditAssignedPerson(btn, card) {
@@ -1188,10 +1219,15 @@ const newCardForm   = document.getElementById('new-card-form');
 const newCardName   = document.getElementById('new-card-name');
 const newCardDesc   = document.getElementById('new-card-desc');
 const newCardTime   = document.getElementById('new-card-time');
-const newCardCount  = document.getElementById('new-card-count');
+const newCardCount    = document.getElementById('new-card-count');
+const newCardCountSel = document.getElementById('new-card-count-sel');
 newCardCount.addEventListener('input', () => {
   const v = parseInt(newCardCount.value);
   if (!isNaN(v)) newCardCount.value = Math.min(5, Math.max(1, v));
+});
+// Keep the hidden number input in sync so saveNewCard always reads from it
+newCardCountSel.addEventListener('change', () => {
+  newCardCount.value = newCardCountSel.value;
 });
 const saveCardBtn   = document.getElementById('save-card-btn');
 const cancelCardBtn = document.getElementById('cancel-card-btn');
@@ -1206,6 +1242,7 @@ addCardBtn.addEventListener('click', () => {
     newCardDesc.value  = '';
     newCardTime.value  = '';
     newCardCount.value = '1';
+    newCardCountSel.value = '1';
     newCardPerson.value = '';
     newCardName.focus();
   }
