@@ -1336,6 +1336,69 @@ document.getElementById('exit-fullscreen-btn').addEventListener('click', functio
   setFullscreen(false);
 });
 
+// ── UI: Export ──────────────────────────────────────────────
+document.getElementById('export-btn').addEventListener('click', () => {
+  const data = {
+    version:        '1.1',
+    exported:       new Date().toISOString(),
+    people:         state.people.map(String),
+    selectedDay:    state.selectedDay,
+    selectedPeople: state.selectedPeople.map(String),
+    personColors:   Object.fromEntries(
+      Object.entries(state.personColors).map(([k, v]) => [String(k), String(v)])
+    ),
+    cards: state.cards.map(c => ({
+      id:             String(c.id),
+      name:           String(c.name),
+      description:    String(c.description),
+      time:           Number(c.time),
+      count:          Number(c.count),
+      assignedPerson: String(c.assignedPerson || ''),
+    })),
+    schedule: JSON.parse(JSON.stringify(state.schedule)),
+  };
+
+  const json = JSON.stringify(data, null, 2)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `my_schedule_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Schedule exported');
+});
+
+// ── UI: Import ──────────────────────────────────────────────
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file').click();
+});
+
+document.getElementById('import-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      // Re-use loadState's validation by writing to localStorage then reloading
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      loadState();
+      renderAll();
+      showToast('Schedule imported');
+    } catch {
+      showToast('Import failed — file may be invalid or corrupted');
+      saveState(); // restore previous good state
+    }
+  };
+  reader.readAsText(file);
+  this.value = ''; // allow re-importing the same file
+});
+
 // ── UI: Clear Day ───────────────────────────────────────────
 document.getElementById('clear-btn').addEventListener('click', () => {
   if (!confirm(`Clear all placements for ${state.selectedDay}?`)) return;

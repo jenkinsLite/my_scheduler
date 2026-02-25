@@ -32,11 +32,23 @@
   <nav role="navigation" aria-label="Application controls">
     <ul role="list">
       <li>
+        <button class="nav-btn" id="export-btn" aria-label="Export schedule as JSON file">
+          Export
+        </button>
+      </li>
+      <li>
+        <button class="nav-btn" id="import-btn" aria-label="Import schedule from JSON file">
+          Import
+        </button>
+      </li>
+      <li>
         <button class="nav-btn" id="clear-btn" aria-label="Clear all placements for selected day">
           Clear Day
         </button>
       </li>
     </ul>
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file" accept=".json" aria-hidden="true" tabindex="-1" />
   </nav>
 
   <!-- ===== MAIN ===== -->
