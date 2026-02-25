@@ -342,7 +342,8 @@ function renderCards() {
 
 function buildCardEl(card) {
   const placed     = totalPlaced(card.id);
-  const fullyPlaced = placed >= card.count;
+  const remaining  = card.count - placed;
+  const fullyPlaced = remaining <= 0;
   const heightPx   = Math.max(72, slotToPx(card.time / SLOT_MIN));
 
   const el = document.createElement('div');
@@ -352,7 +353,7 @@ function buildCardEl(card) {
   el.style.minHeight = heightPx + 'px';
   el.style.backgroundColor = state.personColors[card.assignedPerson] || '';
   el.setAttribute('aria-label',
-    `${card.name}: ${card.description}. ${card.time} min. ${placed}/${card.count} placed. Drag to schedule.`);
+    `${card.name}: ${card.description}. ${card.time} min. ${remaining} of ${card.count} remaining. Drag to schedule.`);
 
   // ── reorder handle (left edge) ──
   const handle = el.appendChild(document.createElement('div'));
@@ -382,8 +383,8 @@ function buildCardEl(card) {
 
   const badge = header.appendChild(document.createElement('span'));
   badge.className = 'card-count-badge';
-  badge.textContent = `${placed}/${card.count}`;
-  badge.setAttribute('aria-label', `${placed} of ${card.count} placed`);
+  badge.textContent = `${remaining}/${card.count}`;
+  badge.setAttribute('aria-label', `${remaining} of ${card.count} remaining`);
 
   // ── description ──
   const desc = el.appendChild(document.createElement('div'));
@@ -592,13 +593,14 @@ function updateBadges() {
   document.querySelectorAll('.activity-card').forEach(el => {
     const card = state.cards.find(c => c.id === el.dataset.cardId);
     if (!card) return;
-    const placed = totalPlaced(card.id);
+    const placed    = totalPlaced(card.id);
+    const remaining = card.count - placed;
     const badge  = el.querySelector('.card-count-badge');
     if (badge) {
-      badge.textContent = `${placed}/${card.count}`;
-      badge.setAttribute('aria-label', `${placed} of ${card.count} placed`);
+      badge.textContent = `${remaining}/${card.count}`;
+      badge.setAttribute('aria-label', `${remaining} of ${card.count} remaining`);
     }
-    el.classList.toggle('fully-placed', placed >= card.count);
+    el.classList.toggle('fully-placed', remaining <= 0);
     // Update height in case zoom changed
     const h = Math.max(72, slotToPx(card.time / SLOT_MIN));
     el.style.minHeight = h + 'px';
@@ -748,6 +750,12 @@ function placeCard(cardId, person, slotIndex) {
   if (!state.schedule[state.selectedDay]) state.schedule[state.selectedDay] = {};
   if (!state.schedule[state.selectedDay][person]) state.schedule[state.selectedDay][person] = [];
   const existing = state.schedule[state.selectedDay][person];
+
+  // Total count exhausted check
+  if (totalPlaced(cardId) >= card.count) {
+    showToast(`${card.name} has no remaining placements (0/${card.count})`);
+    return false;
+  }
 
   // One-instance-per-person-per-day check
   const alreadyOnDay = existing.some(p => p.cardId === cardId);
@@ -1073,6 +1081,10 @@ function startDrag(e, cardId, srcEl) {
   e.preventDefault();
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return;
+  if (totalPlaced(cardId) >= card.count) {
+    showToast(`All of the ${card.name} cards have been placed.`);
+    return;
+  }
 
   srcEl.classList.add('dragging');
   const rect       = srcEl.getBoundingClientRect();
@@ -1111,6 +1123,10 @@ function startDrag(e, cardId, srcEl) {
 function startDragTouch(e, cardId, srcEl) {
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return;
+  if (totalPlaced(cardId) >= card.count) {
+    showToast(`All of the ${card.name} cards have been placed.`);
+    return;
+  }
 
   // Don't prevent default at touchstart — allows native scroll until drag is committed
   const touch0      = e.touches[0];

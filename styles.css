@@ -657,8 +657,17 @@ nav ul {
 }
 
 .activity-card.fully-placed {
-  background: var(--clr-placed-full);
-  border-color: var(--clr-primary);
+  opacity: 0.45;
+  background: var(--clr-surface-alt);
+  border-color: var(--clr-border);
+  cursor: default;
+}
+.activity-card.fully-placed:hover {
+  border-color: var(--clr-border);
+  box-shadow: none;
+}
+.activity-card.fully-placed .card-count-badge {
+  background: var(--clr-text-muted);
 }
 
 /* Drag handle (reorder within panel) */
