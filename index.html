@@ -132,16 +132,25 @@
 
       </aside>
 
+      <!-- Drag-to-resize handle (desktop only) -->
+      <div id="panel-resizer" class="panel-resizer" aria-hidden="true" title="Drag to resize"></div>
+
       <!-- ===== SCHEDULE SECTION: Time grid (~65% width) ===== -->
       <section class="schedule-section" aria-label="Weekly schedule grid">
 
         <div class="schedule-toolbar">
-          <div class="btn-group day-btn-group" role="group" aria-label="Select day">
-            <button class="day-btn active" data-day="Monday"  aria-pressed="true">Mon</button>
-            <button class="day-btn"        data-day="Tuesday" aria-pressed="false">Tue</button>
-            <button class="day-btn"        data-day="Wednesday" aria-pressed="false">Wed</button>
-            <button class="day-btn"        data-day="Thursday" aria-pressed="false">Thu</button>
-            <button class="day-btn"        data-day="Friday"  aria-pressed="false">Fri</button>
+          <div class="day-toolbar-group">
+            <div class="btn-group day-btn-group" role="group" aria-label="Select day">
+              <button class="day-btn active" data-day="Monday"  aria-pressed="true">Mon</button>
+              <button class="day-btn"        data-day="Tuesday" aria-pressed="false">Tue</button>
+              <button class="day-btn"        data-day="Wednesday" aria-pressed="false">Wed</button>
+              <button class="day-btn"        data-day="Thursday" aria-pressed="false">Thu</button>
+              <button class="day-btn"        data-day="Friday"  aria-pressed="false">Fri</button>
+            </div>
+            <select id="grid-sort-select" aria-label="Sort grid columns by" hidden>
+              <option value="day">Sort: Day</option>
+              <option value="person">Sort: Person</option>
+            </select>
           </div>
           <div class="zoom-controls">
             <label for="zoom-slider" class="zoom-label">Zoom</label>

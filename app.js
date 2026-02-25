@@ -23,7 +23,7 @@ const PERSON_COLORS = [
 // ── State ──────────────────────────────────────────────────
 let state = {
   people:        [],
-  selectedDay:   'Monday',
+  selectedDays:  ['Monday'],
   selectedPeople:[],
   cards:         [],
   // schedule[day][personName] = [ { instanceId, cardId, slotIndex } ]
@@ -31,8 +31,10 @@ let state = {
   personColors:  {}
 };
 
-let zoomLevel  = 100;  // percent
-let dragState  = null; // active drag info
+let zoomLevel     = 100;     // percent
+let dragState     = null;    // active drag info
+let gridSort      = 'day';   // 'day' | 'person'
+let _collapsePanel = null;   // set by initPanelResizer
 
 // ── Utilities ──────────────────────────────────────────────
 function uid() { return 'id' + (++_idCounter); }
@@ -104,7 +106,15 @@ function loadState() {
       ? p.people.map(x => clean(String(x))).filter(Boolean)
       : [];
 
-    state.selectedDay = DAYS.includes(p.selectedDay) ? p.selectedDay : 'Monday';
+    // Backward compat: old saves use selectedDay (string); new saves use selectedDays (array)
+    if (Array.isArray(p.selectedDays)) {
+      state.selectedDays = p.selectedDays.filter(d => DAYS.includes(d));
+      if (state.selectedDays.length === 0) state.selectedDays = ['Monday'];
+    } else if (typeof p.selectedDay === 'string' && DAYS.includes(p.selectedDay)) {
+      state.selectedDays = [p.selectedDay];
+    } else {
+      state.selectedDays = ['Monday'];
+    }
 
     state.selectedPeople = Array.isArray(p.selectedPeople)
       ? p.selectedPeople.map(x => clean(String(x))).filter(x => state.people.includes(x))
@@ -154,10 +164,21 @@ function totalPlaced(cardId) {
 // ── Render: Day buttons ─────────────────────────────────────
 function renderDayButtons() {
   document.querySelectorAll('.day-btn').forEach(btn => {
-    const active = btn.dataset.day === state.selectedDay;
+    const active = state.selectedDays.includes(btn.dataset.day);
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+}
+
+function updateLayoutClass() {
+  const multiDay = state.selectedDays.length > 1;
+  const ca = document.querySelector('.content-area');
+  const wasMultiDay = ca ? ca.classList.contains('multi-day') : false;
+  if (ca) ca.classList.toggle('multi-day', multiDay);
+  const sortSel = document.getElementById('grid-sort-select');
+  if (sortSel) sortSel.hidden = !multiDay;
+  // Collapse the activity panel when first entering multi-day mode
+  if (multiDay && !wasMultiDay && _collapsePanel) _collapsePanel();
 }
 
 // ── Render: Name buttons ────────────────────────────────────
@@ -619,6 +640,8 @@ function renderGrid() {
   timeCol.innerHTML = '';
   gridEl.innerHTML  = '';
 
+  updateLayoutClass();
+
   // ── Time labels ──
   for (let i = 0; i <= TOTAL_SLOTS; i++) {
     const label   = document.createElement('div');
@@ -638,18 +661,38 @@ function renderGrid() {
   }
 
   // ── Grid columns ──
-  state.selectedPeople.forEach(person => {
+  const isMultiDay = state.selectedDays.length > 1;
+  const colPairs = [];
+  if (gridSort === 'person') {
+    state.selectedPeople.forEach(person =>
+      state.selectedDays.forEach(day => colPairs.push({ day, person }))
+    );
+  } else {
+    state.selectedDays.forEach(day =>
+      state.selectedPeople.forEach(person => colPairs.push({ day, person }))
+    );
+  }
+  colPairs.forEach(({ day, person }) => {
     const col = document.createElement('div');
     col.className = 'grid-column';
     col.dataset.person = person;
+    col.dataset.day    = day;
     col.setAttribute('role', 'gridcell');
-    col.setAttribute('aria-label', `${person}'s schedule`);
+    col.setAttribute('aria-label', `${person}'s schedule for ${day}`);
 
     // Column header
     const colHeader = col.appendChild(document.createElement('div'));
     colHeader.className = 'col-header';
-    colHeader.textContent = person;
     colHeader.setAttribute('aria-hidden', 'true');
+    if (isMultiDay) {
+      const dayLabel = document.createElement('span');
+      dayLabel.className = 'col-day-label';
+      dayLabel.textContent = day.slice(0, 3);
+      colHeader.appendChild(dayLabel);
+    }
+    const personSpan = document.createElement('span');
+    personSpan.textContent = person;
+    colHeader.appendChild(personSpan);
 
     // Slot container
     const slots = col.appendChild(document.createElement('div'));
@@ -678,18 +721,18 @@ function renderGrid() {
     gridEl.appendChild(col);
 
     // ── Render placed cards ──
-    const daySchedule = (state.schedule[state.selectedDay] || {})[person] || [];
+    const daySchedule = (state.schedule[day] || {})[person] || [];
     daySchedule.forEach(placement => {
       const card = state.cards.find(c => c.id === placement.cardId);
       if (!card) return;
-      placedCardEl(card, placement, person, slots);
+      placedCardEl(card, placement, person, slots, day);
     });
   });
 
   updateBadges();
 }
 
-function placedCardEl(card, placement, person, slotsContainer) {
+function placedCardEl(card, placement, person, slotsContainer, day) {
   const heightPx = Math.max(unitPx(), slotToPx(card.time / SLOT_MIN));
   const topPx    = slotToPx(placement.slotIndex);
 
@@ -700,6 +743,7 @@ function placedCardEl(card, placement, person, slotsContainer) {
   const personColor = state.personColors[card.assignedPerson];
   if (personColor) el.style.backgroundColor = personColor;
   el.dataset.instanceId = placement.instanceId;
+  el.dataset.day = day;
   el.setAttribute('aria-label',
     `${card.name} at ${minutesToLabel(placement.slotIndex * SLOT_MIN)}, ${card.time} min. Drag to move, click × to remove.`);
 
@@ -717,7 +761,7 @@ function placedCardEl(card, placement, person, slotsContainer) {
   removeBtn.setAttribute('aria-label', `Remove ${card.name}`);
   removeBtn.addEventListener('click', e => {
     e.stopPropagation();
-    removePlaced(person, placement.instanceId);
+    removePlaced(day, person, placement.instanceId);
   });
 
   // Drag to reposition
@@ -733,25 +777,25 @@ function placedCardEl(card, placement, person, slotsContainer) {
   slotsContainer.appendChild(el);
 }
 
-function removePlaced(person, instanceId) {
-  const day = state.schedule[state.selectedDay];
-  if (!day || !day[person]) return;
-  day[person] = day[person].filter(s => s.instanceId !== instanceId);
+function removePlaced(day, person, instanceId) {
+  const daySchedule = state.schedule[day];
+  if (!daySchedule || !daySchedule[person]) return;
+  daySchedule[person] = daySchedule[person].filter(s => s.instanceId !== instanceId);
   saveState();
   renderGrid();
 }
 
 // ── Place card into schedule ─────────────────────────────────
-function placeCard(cardId, person, slotIndex) {
+function placeCard(cardId, person, slotIndex, day) {
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return;
 
   slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, Math.floor(slotIndex)));
   const endSlot = slotIndex + card.time / SLOT_MIN;
 
-  if (!state.schedule[state.selectedDay]) state.schedule[state.selectedDay] = {};
-  if (!state.schedule[state.selectedDay][person]) state.schedule[state.selectedDay][person] = [];
-  const existing = state.schedule[state.selectedDay][person];
+  if (!state.schedule[day]) state.schedule[day] = {};
+  if (!state.schedule[day][person]) state.schedule[day][person] = [];
+  const existing = state.schedule[day][person];
 
   // Total count exhausted check
   if (totalPlaced(cardId) >= card.count) {
@@ -762,7 +806,7 @@ function placeCard(cardId, person, slotIndex) {
   // One-instance-per-person-per-day check
   const alreadyOnDay = existing.some(p => p.cardId === cardId);
   if (alreadyOnDay) {
-    showToast(`${card.name} is already scheduled for ${person} on ${state.selectedDay} — only one per day allowed`);
+    showToast(`${card.name} is already scheduled for ${person} on ${day} — only one per day allowed`);
     return false;
   }
 
@@ -893,10 +937,10 @@ function startReorderTouch(e, cardId, srcEl) {
 }
 
 // ── Grid Card Drag (reposition a placed card) ──────────────
-function restorePlacement(savedPlacement, savedPerson) {
-  if (!state.schedule[state.selectedDay]) state.schedule[state.selectedDay] = {};
-  if (!state.schedule[state.selectedDay][savedPerson]) state.schedule[state.selectedDay][savedPerson] = [];
-  state.schedule[state.selectedDay][savedPerson].push(savedPlacement);
+function restorePlacement(savedPlacement, savedPerson, day) {
+  if (!state.schedule[day]) state.schedule[day] = {};
+  if (!state.schedule[day][savedPerson]) state.schedule[day][savedPerson] = [];
+  state.schedule[day][savedPerson].push(savedPlacement);
   saveState();
   renderGrid();
 }
@@ -906,9 +950,10 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
 
   // Temporarily remove from state so overlap check ignores it
   const savedPlacement = { ...placement };
-  const day = state.schedule[state.selectedDay];
-  if (day && day[person]) {
-    day[person] = day[person].filter(s => s.instanceId !== placement.instanceId);
+  const savedDay = srcEl.dataset.day;
+  const daySchedule = state.schedule[savedDay];
+  if (daySchedule && daySchedule[person]) {
+    daySchedule[person] = daySchedule[person].filter(s => s.instanceId !== placement.instanceId);
   }
 
   srcEl.classList.add('dragging');
@@ -939,7 +984,7 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const col    = target?.closest('.grid-column');
     const placed = col ? dropOnColumn(e.clientY, col, card.id) : false;
-    if (!placed) restorePlacement(savedPlacement, person);
+    if (!placed) restorePlacement(savedPlacement, person, savedDay);
 
     dragState = null;
   };
@@ -952,9 +997,10 @@ function startGridCardDragTouch(e, card, placement, person, srcEl) {
   e.preventDefault();
 
   const savedPlacement = { ...placement };
-  const day = state.schedule[state.selectedDay];
-  if (day && day[person]) {
-    day[person] = day[person].filter(s => s.instanceId !== placement.instanceId);
+  const savedDay = srcEl.dataset.day;
+  const daySchedule = state.schedule[savedDay];
+  if (daySchedule && daySchedule[person]) {
+    daySchedule[person] = daySchedule[person].filter(s => s.instanceId !== placement.instanceId);
   }
 
   const touch = e.touches[0];
@@ -988,7 +1034,7 @@ function startGridCardDragTouch(e, card, placement, person, srcEl) {
     const target = document.elementFromPoint(t.clientX, t.clientY);
     const col    = target?.closest('.grid-column');
     const placed = col ? dropOnColumn(t.clientY, col, card.id) : false;
-    if (!placed) restorePlacement(savedPlacement, person);
+    if (!placed) restorePlacement(savedPlacement, person, savedDay);
 
     dragState = null;
   };
@@ -1066,7 +1112,7 @@ function dropOnColumn(clientY, colEl, cardId) {
   // Adjust for ghost offset so card top aligns correctly
   const offsetY = dragState ? (dragState.grabOffsetY || 0) : 0;
   const slotIndex = Math.floor((rawY - offsetY) / unitPx());
-  return placeCard(cardId, colEl.dataset.person, slotIndex);
+  return placeCard(cardId, colEl.dataset.person, slotIndex, colEl.dataset.day);
 }
 
 function highlightColumn(x, y) {
@@ -1184,11 +1230,25 @@ function startDragTouch(e, cardId, srcEl) {
 // ── UI: Day buttons ─────────────────────────────────────────
 document.querySelectorAll('.day-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    state.selectedDay = btn.dataset.day;
+    const day = btn.dataset.day;
+    const idx = state.selectedDays.indexOf(day);
+    if (idx === -1) {
+      state.selectedDays.push(day);
+    } else if (state.selectedDays.length > 1) {
+      state.selectedDays.splice(idx, 1);
+    }
+    state.selectedDays.sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b));
     saveState();
     renderDayButtons();
+    updateLayoutClass();
     renderGrid();
   });
+});
+
+// ── UI: Grid sort ───────────────────────────────────────────
+document.getElementById('grid-sort-select').addEventListener('change', function () {
+  gridSort = this.value;
+  renderGrid();
 });
 
 // ── UI: Add Person ──────────────────────────────────────────
@@ -1342,7 +1402,7 @@ document.getElementById('export-btn').addEventListener('click', () => {
     version:        '1.1',
     exported:       new Date().toISOString(),
     people:         state.people.map(String),
-    selectedDay:    state.selectedDay,
+    selectedDays:   state.selectedDays.slice(),
     selectedPeople: state.selectedPeople.map(String),
     personColors:   Object.fromEntries(
       Object.entries(state.personColors).map(([k, v]) => [String(k), String(v)])
@@ -1401,11 +1461,13 @@ document.getElementById('import-file').addEventListener('change', function () {
 
 // ── UI: Clear Day ───────────────────────────────────────────
 document.getElementById('clear-btn').addEventListener('click', () => {
-  if (!confirm(`Clear all placements for ${state.selectedDay}?`)) return;
-  state.schedule[state.selectedDay] = {};
+  const days = state.selectedDays;
+  const label = days.length === 1 ? days[0] : `${days.length} selected days`;
+  if (!confirm(`Clear all placements for ${label}?`)) return;
+  days.forEach(d => { state.schedule[d] = {}; });
   saveState();
   renderGrid();
-  showToast(`${state.selectedDay} cleared`);
+  showToast(`${label} cleared`);
 });
 
 // ── Render All ──────────────────────────────────────────────
@@ -1415,6 +1477,102 @@ function renderAll() {
   renderCards();
   renderGrid();
 }
+
+// ── Panel Resizer ────────────────────────────────────────────
+(function initPanelResizer() {
+  const COMMIT_PX   = 300;  // snap threshold evaluated on mouse-up only
+  const STORAGE_KEY = 'cm_panel_width';
+
+  const resizer     = document.getElementById('panel-resizer');
+  const leftPanel   = document.querySelector('.left-panel');
+  const contentArea = document.querySelector('.content-area');
+
+  let panelCollapsed = false;
+  _collapsePanel = () => { if (!panelCollapsed) collapse(); };
+
+  function collapse() {
+    leftPanel.style.width    = '0';
+    leftPanel.style.minWidth = '0';
+    leftPanel.style.padding  = '0';
+    leftPanel.style.border   = 'none';
+    panelCollapsed = true;
+    resizer.classList.add('panel-collapsed');
+  }
+
+  function open(px) {
+    leftPanel.style.width    = Math.max(COMMIT_PX, px) + 'px';
+    leftPanel.style.minWidth = '';
+    leftPanel.style.padding  = '';
+    leftPanel.style.border   = '';
+    panelCollapsed = false;
+    resizer.classList.remove('panel-collapsed');
+  }
+
+  function savePanelWidth() {
+    localStorage.setItem(STORAGE_KEY, panelCollapsed ? 0 : parseInt(leftPanel.style.width) || 0);
+  }
+
+  // Restore saved width on load (desktop only)
+  if (window.innerWidth >= 768) {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) {
+      const w = parseFloat(saved);
+      if (w < COMMIT_PX) collapse(); else open(w);
+    }
+  }
+
+  function onDragStart(getClientX) {
+    resizer.classList.add('resizing');
+    const wasCollapsed = panelCollapsed;
+
+    // Strip padding/border for the whole drag so the panel tracks the cursor cleanly
+    leftPanel.style.padding = '0';
+    leftPanel.style.border  = 'none';
+
+    const move = e => {
+      const maxPx = contentArea.offsetWidth * 0.65;
+      const px = Math.max(0, Math.min(getClientX(e) - contentArea.getBoundingClientRect().left, maxPx));
+      leftPanel.style.width    = px + 'px';
+      leftPanel.style.minWidth = px > 0 ? '' : '0';
+      resizer.classList.toggle('panel-collapsed', px < 1);
+    };
+
+    const end = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup',   end);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('touchend',  end);
+      resizer.classList.remove('resizing');
+
+      const w = parseInt(leftPanel.style.width) || 0;
+      if (w < COMMIT_PX) {
+        // Below threshold on release:
+        //   closing drag → snap shut; opening drag → snap to minimum open
+        if (wasCollapsed) open(COMMIT_PX); else collapse();
+      } else {
+        // Above threshold → leave where it is, restore padding/border
+        open(w);
+      }
+
+      savePanelWidth();
+    };
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup',   end);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('touchend',  end);
+  }
+
+  resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    onDragStart(e => e.clientX);
+  });
+
+  resizer.addEventListener('touchstart', e => {
+    e.preventDefault();
+    onDragStart(e => e.touches[0].clientX);
+  }, { passive: false });
+})();
 
 // ── Init ────────────────────────────────────────────────────
 loadState();
