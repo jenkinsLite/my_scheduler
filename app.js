@@ -31,10 +31,47 @@ let state = {
   personColors:  {}
 };
 
-let zoomLevel     = 100;     // percent
-let dragState     = null;    // active drag info
-let gridSort      = 'day';   // 'day' | 'person'
+let zoomLevel      = 100;    // percent
+let dragState      = null;   // active drag info
+let gridSort       = 'day';  // 'day' | 'person'
 let _collapsePanel = null;   // set by initPanelResizer
+
+const selectedCardIds = new Set(); // card IDs currently highlighted in the left panel
+
+function clearCardSelection() {
+  selectedCardIds.clear();
+  document.querySelectorAll('.activity-card.card-selected')
+    .forEach(el => el.classList.remove('card-selected'));
+}
+
+function toggleCardSelection(cardId) {
+  const el = document.querySelector(`[data-card-id="${CSS.escape(cardId)}"]`);
+  if (selectedCardIds.has(cardId)) {
+    selectedCardIds.delete(cardId);
+    el?.classList.remove('card-selected');
+  } else {
+    selectedCardIds.add(cardId);
+    el?.classList.add('card-selected');
+  }
+}
+
+const selectedPlacedIds = new Set(); // instanceIds of selected placed cards in the grid
+
+function clearPlacedSelection() {
+  selectedPlacedIds.clear();
+  document.querySelectorAll('.placed-card.placed-selected')
+    .forEach(el => el.classList.remove('placed-selected'));
+}
+
+function togglePlacedSelection(instanceId, el) {
+  if (selectedPlacedIds.has(instanceId)) {
+    selectedPlacedIds.delete(instanceId);
+    el?.classList.remove('placed-selected');
+  } else {
+    selectedPlacedIds.add(instanceId);
+    el?.classList.add('placed-selected');
+  }
+}
 
 // ── Utilities ──────────────────────────────────────────────
 function uid() { return 'id' + (++_idCounter); }
@@ -360,7 +397,11 @@ function deletePerson(name) {
 function renderCards() {
   const list = document.getElementById('card-list');
   list.innerHTML = '';
-  state.cards.forEach(card => list.appendChild(buildCardEl(card)));
+  state.cards.forEach(card => {
+    const el = buildCardEl(card);
+    if (selectedCardIds.has(card.id)) el.classList.add('card-selected');
+    list.appendChild(el);
+  });
 }
 
 function buildCardEl(card) {
@@ -455,6 +496,13 @@ function buildCardEl(card) {
   // ── drag to grid listeners (body only, not handle/buttons/inputs) ──
   el.addEventListener('mousedown', e => {
     if (e.target.closest('button, input, select, .card-drag-handle')) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleCardSelection(card.id);
+      return;
+    }
+    clearCardSelection();
     startDrag(e, card.id, el);
   });
   el.addEventListener('touchstart', e => {
@@ -599,6 +647,7 @@ function inlineEditAssignedPerson(btn, card) {
 }
 
 function deleteCard(cardId) {
+  selectedCardIds.delete(cardId);
   state.cards = state.cards.filter(c => c.id !== cardId);
   DAYS.forEach(day => {
     if (!state.schedule[day]) return;
@@ -738,6 +787,7 @@ function placedCardEl(card, placement, person, slotsContainer, day) {
 
   const el = document.createElement('div');
   el.className = 'placed-card';
+  if (selectedPlacedIds.has(placement.instanceId)) el.classList.add('placed-selected');
   el.style.top    = topPx    + 'px';
   el.style.height = heightPx + 'px';
   const personColor = state.personColors[card.assignedPerson];
@@ -764,13 +814,23 @@ function placedCardEl(card, placement, person, slotsContainer, day) {
     removePlaced(day, person, placement.instanceId);
   });
 
-  // Drag to reposition
+  // Drag to reposition (with Ctrl+click for multi-select)
   el.addEventListener('mousedown', e => {
     if (e.target.closest('button')) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      togglePlacedSelection(placement.instanceId, el);
+      return;
+    }
+    // If clicking a non-selected card, clear existing selection first
+    if (!selectedPlacedIds.has(placement.instanceId)) {
+      clearPlacedSelection();
+    }
     startGridCardDrag(e, card, placement, person, el);
   });
   el.addEventListener('touchstart', e => {
     if (e.target.closest('button')) return;
+    clearPlacedSelection();
     startGridCardDragTouch(e, card, placement, person, el);
   }, { passive: false });
 
@@ -778,6 +838,7 @@ function placedCardEl(card, placement, person, slotsContainer, day) {
 }
 
 function removePlaced(day, person, instanceId) {
+  selectedPlacedIds.delete(instanceId);
   const daySchedule = state.schedule[day];
   if (!daySchedule || !daySchedule[person]) return;
   daySchedule[person] = daySchedule[person].filter(s => s.instanceId !== instanceId);
@@ -937,6 +998,43 @@ function startReorderTouch(e, cardId, srcEl) {
 }
 
 // ── Grid Card Drag (reposition a placed card) ──────────────
+
+/** Silent version of placeCard — no toast, no renderGrid. Returns true on success. */
+function placeCardDirect(cardId, person, slotIndex, day) {
+  const card = state.cards.find(c => c.id === cardId);
+  if (!card) return false;
+
+  slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, Math.floor(slotIndex)));
+  const endSlot = slotIndex + card.time / SLOT_MIN;
+
+  if (!state.schedule[day]) state.schedule[day] = {};
+  if (!state.schedule[day][person]) state.schedule[day][person] = [];
+  const existing = state.schedule[day][person];
+
+  if (totalPlaced(cardId) >= card.count) return false;
+  if (existing.some(p => p.cardId === cardId)) return false;
+  const overlaps = existing.some(p => {
+    const ec = state.cards.find(c => c.id === p.cardId);
+    if (!ec) return false;
+    const eEnd = p.slotIndex + ec.time / SLOT_MIN;
+    return !(endSlot <= p.slotIndex || slotIndex >= eEnd);
+  });
+  if (overlaps) return false;
+
+  existing.push({ instanceId: uid(), cardId, slotIndex });
+  return true;
+}
+
+/** Compute the slot index for a drop at clientY into colEl, using current grabOffsetY. */
+function computeDropSlot(clientY, colEl) {
+  const slotsEl = colEl.querySelector('.col-slots');
+  if (!slotsEl) return 0;
+  const rect    = slotsEl.getBoundingClientRect();
+  const rawY    = clientY - rect.top;
+  const offsetY = dragState ? (dragState.grabOffsetY || 0) : 0;
+  return Math.floor((rawY - offsetY) / unitPx());
+}
+
 function restorePlacement(savedPlacement, savedPerson, day) {
   if (!state.schedule[day]) state.schedule[day] = {};
   if (!state.schedule[day][savedPerson]) state.schedule[day][savedPerson] = [];
@@ -948,7 +1046,32 @@ function restorePlacement(savedPlacement, savedPerson, day) {
 function startGridCardDrag(e, card, placement, person, srcEl) {
   e.preventDefault();
 
-  // Temporarily remove from state so overlap check ignores it
+  // Check if this is a multi-card drag (dragged card is in a selection of 2+)
+  const isMulti = selectedPlacedIds.size > 1 && selectedPlacedIds.has(placement.instanceId);
+
+  // Collect and remove all other selected placements from state
+  const extras = [];
+  if (isMulti) {
+    DAYS.forEach(day => {
+      if (!state.schedule[day]) return;
+      Object.keys(state.schedule[day]).forEach(p => {
+        if (!state.schedule[day][p]) return;
+        state.schedule[day][p].forEach(s => {
+          if (s.instanceId !== placement.instanceId && selectedPlacedIds.has(s.instanceId)) {
+            const c = state.cards.find(c => c.id === s.cardId);
+            if (c) extras.push({ placement: { ...s }, person: p, day, card: c,
+              slotOffset: s.slotIndex - placement.slotIndex });
+          }
+        });
+        // Remove extras from state
+        state.schedule[day][p] = state.schedule[day][p].filter(
+          s => !selectedPlacedIds.has(s.instanceId) || s.instanceId === placement.instanceId
+        );
+      });
+    });
+  }
+
+  // Temporarily remove primary card from state so overlap check ignores it
   const savedPlacement = { ...placement };
   const savedDay = srcEl.dataset.day;
   const daySchedule = state.schedule[savedDay];
@@ -960,7 +1083,7 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
   const rect = srcEl.getBoundingClientRect();
   const grabOffsetY = e.clientY - rect.top;
 
-  const ghost = buildGhost(card, rect.width);
+  const ghost = buildGhost(card, rect.width, isMulti ? extras.length : 0);
   ghost.style.left = (e.clientX - 16) + 'px';
   ghost.style.top  = (e.clientY - grabOffsetY) + 'px';
 
@@ -983,8 +1106,51 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
 
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const col    = target?.closest('.grid-column');
-    const placed = col ? dropOnColumn(e.clientY, col, card.id) : false;
-    if (!placed) restorePlacement(savedPlacement, person, savedDay);
+
+    if (isMulti) {
+      // Multi-drag: main card goes to the drop target; each extra shifts by the same
+      // time offset but stays in its own original column (avoids slot conflicts when
+      // cards from different columns share the same start time).
+      let mainOk = false;
+      if (col) {
+        const targetSlot = computeDropSlot(e.clientY, col);
+        mainOk = placeCardDirect(card.id, col.dataset.person, targetSlot, col.dataset.day);
+        if (mainOk) {
+          const timeShift = targetSlot - savedPlacement.slotIndex;
+          const failedExtras = [];
+          extras.forEach(ex => {
+            const newSlot = ex.placement.slotIndex + timeShift;
+            const ok = placeCardDirect(ex.card.id, ex.person, newSlot, ex.day);
+            if (!ok) failedExtras.push(ex);
+          });
+          // Restore any extras that couldn't be placed
+          failedExtras.forEach(ex => {
+            if (!state.schedule[ex.day]) state.schedule[ex.day] = {};
+            if (!state.schedule[ex.day][ex.person]) state.schedule[ex.day][ex.person] = [];
+            state.schedule[ex.day][ex.person].push(ex.placement);
+          });
+          showToast(`Moved ${1 + extras.length - failedExtras.length} cards`);
+        }
+      }
+      if (!mainOk) {
+        // Restore everything
+        if (!state.schedule[savedDay]) state.schedule[savedDay] = {};
+        if (!state.schedule[savedDay][person]) state.schedule[savedDay][person] = [];
+        state.schedule[savedDay][person].push(savedPlacement);
+        extras.forEach(ex => {
+          if (!state.schedule[ex.day]) state.schedule[ex.day] = {};
+          if (!state.schedule[ex.day][ex.person]) state.schedule[ex.day][ex.person] = [];
+          state.schedule[ex.day][ex.person].push(ex.placement);
+        });
+      }
+      saveState();
+      renderGrid();
+      clearPlacedSelection();
+    } else {
+      // Single drag: existing behavior
+      const placed = col ? dropOnColumn(e.clientY, col, card.id) : false;
+      if (!placed) restorePlacement(savedPlacement, person, savedDay);
+    }
 
     dragState = null;
   };
@@ -1044,7 +1210,7 @@ function startGridCardDragTouch(e, card, placement, person, srcEl) {
 }
 
 // ── Custom Drag & Drop (to schedule grid) ──────────────────
-function buildGhost(card, w) {
+function buildGhost(card, w, extraCount = 0) {
   const ghost = document.createElement('div');
   ghost.className = 'drag-ghost';
   ghost.style.width = Math.min(220, w) + 'px';
@@ -1056,6 +1222,12 @@ function buildGhost(card, w) {
   const t = ghost.appendChild(document.createElement('div'));
   t.className = 'card-time-label';
   t.textContent = card.time + ' min';
+
+  if (extraCount > 0) {
+    const badge = ghost.appendChild(document.createElement('div'));
+    badge.className = 'ghost-extra-badge';
+    badge.textContent = '+' + extraCount;
+  }
 
   document.body.appendChild(ghost);
   return ghost;
@@ -1592,6 +1764,165 @@ function printSchedule() {
   win.focus();
   setTimeout(() => win.print(), 400);
 }
+
+// ── Card rubber-band selection ───────────────────────────────
+function startRubberBand(startX, startY, additive) {
+  // Snapshot pre-drag selection so additive mode works correctly during move
+  const preSelection = additive ? new Set(selectedCardIds) : new Set();
+
+  const band = document.createElement('div');
+  band.className = 'rubber-band-rect';
+  band.style.display = 'none';
+  document.body.appendChild(band);
+
+  let started = false;
+
+  const move = e => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!started && Math.hypot(dx, dy) < 6) return;
+    started = true;
+
+    const left   = Math.min(startX, e.clientX);
+    const top    = Math.min(startY, e.clientY);
+    const right  = Math.max(startX, e.clientX);
+    const bottom = Math.max(startY, e.clientY);
+
+    band.style.display = 'block';
+    band.style.left    = left   + 'px';
+    band.style.top     = top    + 'px';
+    band.style.width   = (right - left)  + 'px';
+    band.style.height  = (bottom - top)  + 'px';
+
+    // Rebuild selection each move: preSelection + any card intersecting the rect
+    selectedCardIds.clear();
+    preSelection.forEach(id => selectedCardIds.add(id));
+
+    document.querySelectorAll('.activity-card').forEach(cardEl => {
+      const cr = cardEl.getBoundingClientRect();
+      if (cr.left < right && cr.right > left && cr.top < bottom && cr.bottom > top) {
+        selectedCardIds.add(cardEl.dataset.cardId);
+      }
+    });
+
+    document.querySelectorAll('.activity-card').forEach(cardEl => {
+      cardEl.classList.toggle('card-selected', selectedCardIds.has(cardEl.dataset.cardId));
+    });
+  };
+
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup',   up);
+    band.remove();
+    // Plain click on empty area (no drag) clears selection
+    if (!started && !additive) clearCardSelection();
+  };
+
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup',   up);
+}
+
+// Rubber-band starts from empty space in the card list
+document.getElementById('card-list').addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  if (e.target !== document.getElementById('card-list')) return; // empty space only
+  e.preventDefault();
+  startRubberBand(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
+});
+
+// ── Placed-card rubber-band selection ───────────────────────
+function startPlacedRubberBand(startX, startY, additive) {
+  const preSelection = additive ? new Set(selectedPlacedIds) : new Set();
+
+  const band = document.createElement('div');
+  band.className = 'rubber-band-rect';
+  band.style.display = 'none';
+  document.body.appendChild(band);
+
+  let started = false;
+
+  const move = e => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!started && Math.hypot(dx, dy) < 6) return;
+    started = true;
+
+    const left   = Math.min(startX, e.clientX);
+    const top    = Math.min(startY, e.clientY);
+    const right  = Math.max(startX, e.clientX);
+    const bottom = Math.max(startY, e.clientY);
+
+    band.style.display = 'block';
+    band.style.left    = left   + 'px';
+    band.style.top     = top    + 'px';
+    band.style.width   = (right - left)  + 'px';
+    band.style.height  = (bottom - top)  + 'px';
+
+    selectedPlacedIds.clear();
+    preSelection.forEach(id => selectedPlacedIds.add(id));
+
+    document.querySelectorAll('.placed-card').forEach(cardEl => {
+      const cr = cardEl.getBoundingClientRect();
+      if (cr.left < right && cr.right > left && cr.top < bottom && cr.bottom > top) {
+        selectedPlacedIds.add(cardEl.dataset.instanceId);
+      }
+    });
+
+    document.querySelectorAll('.placed-card').forEach(cardEl => {
+      cardEl.classList.toggle('placed-selected',
+        selectedPlacedIds.has(cardEl.dataset.instanceId));
+    });
+  };
+
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup',   up);
+    band.remove();
+    if (!started && !additive) clearPlacedSelection();
+  };
+
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup',   up);
+}
+
+// Rubber-band on empty grid space (col-slots but not on a placed card or button)
+document.getElementById('schedule-grid').addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  if (e.target.closest('.placed-card') || e.target.closest('button')) return;
+  if (!e.target.closest('.col-slots')) return;
+  e.preventDefault();
+  startPlacedRubberBand(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
+});
+
+// Delete selected placed cards
+function deleteSelectedPlaced() {
+  DAYS.forEach(day => {
+    if (!state.schedule[day]) return;
+    Object.keys(state.schedule[day]).forEach(person => {
+      state.schedule[day][person] = state.schedule[day][person].filter(
+        s => !selectedPlacedIds.has(s.instanceId)
+      );
+    });
+  });
+  clearPlacedSelection();
+  saveState();
+  renderGrid();
+}
+
+// Escape clears both selections; Delete/Backspace removes selected placed cards
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    clearCardSelection();
+    clearPlacedSelection();
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPlacedIds.size > 0) {
+    // Only delete placed cards when not focused inside an input/select
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    deleteSelectedPlaced();
+  }
+});
 
 // ── Render All ──────────────────────────────────────────────
 function renderAll() {
