@@ -1004,6 +1004,7 @@ nav ul {
   flex: 0 0 var(--time-col-w);
   min-width: var(--time-col-w);
   border-right: 2px solid var(--clr-border);
+  border-bottom: 2px solid var(--clr-primary);
   background: var(--clr-surface-alt);
   position: sticky;
   left: 0;
@@ -1078,6 +1079,8 @@ nav ul {
 
 .col-slots {
   position: relative;
+  overflow: hidden;
+  border-bottom: 2px solid var(--clr-primary);
   /* height set dynamically by JS */
 }
 

@@ -8,9 +8,9 @@
 // ── Constants ──────────────────────────────────────────────
 const DAYS         = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const START_HOUR   = 6;    // 6:00 AM
-const END_HOUR     = 22;   // 10:00 PM
+const END_HOUR     = 18;   // 6:00 PM
 const SLOT_MIN     = 5;    // minutes per grid row
-const TOTAL_SLOTS  = ((END_HOUR - START_HOUR) * 60) / SLOT_MIN;  // 192
+const TOTAL_SLOTS  = ((END_HOUR - START_HOUR) * 60) / SLOT_MIN;  // 144
 const STORAGE_KEY  = 'cm_scheduler_v1';
 const BASE_UNIT_PX = 12;   // px per slot at 100 % zoom
 let   _idCounter   = Date.now();
@@ -686,13 +686,16 @@ function renderGrid() {
 
   const timeCol  = document.getElementById('time-column');
   const gridEl   = document.getElementById('schedule-grid');
-  timeCol.innerHTML = '';
-  gridEl.innerHTML  = '';
+  const wrapper  = document.getElementById('schedule-wrapper');
+  timeCol.innerHTML    = '';
+  gridEl.innerHTML     = '';
+  timeCol.style.paddingTop = '';
+  wrapper.style.maxHeight  = '';
 
   updateLayoutClass();
 
   // ── Time labels ──
-  for (let i = 0; i <= TOTAL_SLOTS; i++) {
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
     const label   = document.createElement('div');
     label.className = 'time-label';
     label.style.height = unitPx() + 'px';
@@ -708,6 +711,13 @@ function renderGrid() {
     }
     timeCol.appendChild(label);
   }
+  // Terminal 6 PM marker: overlaps the last slot so it stays within the column height
+  const endLabel = document.createElement('div');
+  endLabel.className = 'time-label hour';
+  endLabel.style.height  = unitPx() + 'px';
+  endLabel.style.marginTop = (-unitPx()) + 'px';
+  endLabel.textContent = minutesToLabel(TOTAL_SLOTS * SLOT_MIN);
+  timeCol.appendChild(endLabel);
 
   // ── Grid columns ──
   const isMultiDay = state.selectedDays.length > 1;
@@ -779,6 +789,17 @@ function renderGrid() {
   });
 
   updateBadges();
+
+  // After layout: align time column with col-slots and cap wrapper to exact grid height,
+  // so no blank space appears below the 6 PM boundary.
+  requestAnimationFrame(() => {
+    const gc = gridEl.querySelector('.grid-column');
+    const ch = gc?.querySelector('.col-header');
+    if (gc && ch) {
+      timeCol.style.paddingTop = ch.offsetHeight + 'px';
+      wrapper.style.maxHeight  = gc.offsetHeight  + 'px';
+    }
+  });
 }
 
 function placedCardEl(card, placement, person, slotsContainer, day) {
@@ -851,8 +872,9 @@ function placeCard(cardId, person, slotIndex, day) {
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return;
 
-  slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, Math.floor(slotIndex)));
-  const endSlot = slotIndex + card.time / SLOT_MIN;
+  const slotsNeeded = card.time / SLOT_MIN;
+  slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - slotsNeeded, Math.floor(slotIndex)));
+  const endSlot = slotIndex + slotsNeeded;
 
   if (!state.schedule[day]) state.schedule[day] = {};
   if (!state.schedule[day][person]) state.schedule[day][person] = [];
@@ -1004,8 +1026,9 @@ function placeCardDirect(cardId, person, slotIndex, day) {
   const card = state.cards.find(c => c.id === cardId);
   if (!card) return false;
 
-  slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, Math.floor(slotIndex)));
-  const endSlot = slotIndex + card.time / SLOT_MIN;
+  const slotsNeeded = card.time / SLOT_MIN;
+  slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - slotsNeeded, Math.floor(slotIndex)));
+  const endSlot = slotIndex + slotsNeeded;
 
   if (!state.schedule[day]) state.schedule[day] = {};
   if (!state.schedule[day][person]) state.schedule[day][person] = [];
