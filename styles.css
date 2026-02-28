@@ -1040,6 +1040,7 @@ nav ul {
   flex-direction: column;
   min-width: var(--card-min-w);
   border-right: 1px solid var(--clr-border);
+  border-bottom: 2px solid var(--clr-primary);
   position: relative;
 }
 .grid-column:last-child { border-right: none; }
@@ -1080,7 +1081,6 @@ nav ul {
 .col-slots {
   position: relative;
   overflow: hidden;
-  border-bottom: 2px solid var(--clr-primary);
   /* height set dynamically by JS */
 }
 

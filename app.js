@@ -690,6 +690,7 @@ function renderGrid() {
   timeCol.innerHTML    = '';
   gridEl.innerHTML     = '';
   timeCol.style.paddingTop = '';
+  timeCol.style.height     = '';
   wrapper.style.maxHeight  = '';
 
   updateLayoutClass();
@@ -797,7 +798,8 @@ function renderGrid() {
     const ch = gc?.querySelector('.col-header');
     if (gc && ch) {
       timeCol.style.paddingTop = ch.offsetHeight + 'px';
-      wrapper.style.maxHeight  = gc.offsetHeight  + 'px';
+      timeCol.style.height     = gc.offsetHeight + 'px';
+      wrapper.style.maxHeight  = gc.offsetHeight + 'px';
     }
   });
 }
@@ -1689,6 +1691,7 @@ function printSchedule() {
   const TOTAL_H       = (END_HOUR - START_HOUR) * 50;   // px height of slot area
   const landscape     = colPairs.length >= 4;
   const COLS_PER_PAGE = 5;                               // columns that fit per printed page
+  const CH_HEIGHT     = 24;                              // fixed .ch header height (px)
 
   // Simple HTML-escape for print output
   const esc = s => String(s)
@@ -1696,9 +1699,10 @@ function printSchedule() {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   // ── Time column (shared across all pages) ──
+  // top values are offset by CH_HEIGHT so 6 AM aligns with the top of .cs (below .ch header)
   let timeHTML = '';
   for (let h = START_HOUR; h <= END_HOUR; h++) {
-    const top   = (h - START_HOUR) * 50;
+    const top   = CH_HEIGHT + (h - START_HOUR) * 50;
     const label = minutesToLabel((h - START_HOUR) * 60);
     timeHTML += `<div class="tl" style="top:${top}px">${esc(label)}</div>`;
   }
@@ -1768,11 +1772,12 @@ ${pageHeader}<div class="pg">
   .ph  { padding: 10px 14px 8px; border-bottom: 2px solid #2a4a3a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
   .ph h1 { font-size: 16px; color: #2a4a3a; }
   .ph p  { font-size: 9px; color: #555; }
-  .pg  { display: flex; align-items: flex-start; padding: 0 14px; gap: 0; }
-  .tc  { flex: 0 0 48px; position: relative; height: ${TOTAL_H + 24}px; }
+  .pg  { display: flex; align-items: stretch; padding: 0 14px; gap: 0; }
+  .tc  { flex: 0 0 48px; position: relative; }
   .tl  { position: absolute; left: 0; right: 4px; font-size: 8px; color: #888; text-align: right; line-height: 1; transform: translateY(-50%); }
-  .gc  { flex: 1; min-width: 80px; border-left: 1px solid #bbb; display: flex; flex-direction: column; }
-  .ch  { padding: 3px 5px; font-size: 10px; font-weight: 700; background: #eef4f0; border-bottom: 2px solid #3d6b4f; text-align: center; color: #2a4a3a; }
+  .gc  { flex: 1; min-width: 80px; border-left: 1px solid #bbb; border-bottom: 2px solid #3d6b4f; display: flex; flex-direction: column; }
+  .gc:last-child { border-right: 1px solid #bbb; }
+  .ch  { height: ${CH_HEIGHT}px; padding: 3px 5px; font-size: 10px; font-weight: 700; background: #eef4f0; border-bottom: 2px solid #3d6b4f; text-align: center; color: #2a4a3a; overflow: hidden; box-sizing: border-box; }
   .cs  { position: relative; }
   .hl  { position: absolute; left: 0; right: 0; border-top: 1px solid #e4e4e4; }
   .hl.half { border-top-style: dashed; border-top-color: #efefef; }
