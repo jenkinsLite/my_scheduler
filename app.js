@@ -1662,16 +1662,17 @@ function printSchedule() {
     );
   }
 
-  const PX_PER_MIN  = 50 / 60;                        // 50 px per hour
-  const TOTAL_H     = (END_HOUR - START_HOUR) * 50;   // px height of slot area
-  const landscape   = colPairs.length >= 4;
+  const PX_PER_MIN    = 50 / 60;                        // 50 px per hour
+  const TOTAL_H       = (END_HOUR - START_HOUR) * 50;   // px height of slot area
+  const landscape     = colPairs.length >= 4;
+  const COLS_PER_PAGE = 5;                               // columns that fit per printed page
 
   // Simple HTML-escape for print output
   const esc = s => String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  // ── Time column ──
+  // ── Time column (shared across all pages) ──
   let timeHTML = '';
   for (let h = START_HOUR; h <= END_HOUR; h++) {
     const top   = (h - START_HOUR) * 50;
@@ -1679,20 +1680,17 @@ function printSchedule() {
     timeHTML += `<div class="tl" style="top:${top}px">${esc(label)}</div>`;
   }
 
-  // ── Grid columns ──
-  let colsHTML = '';
-  colPairs.forEach(({ day, person }) => {
+  // ── Build one grid column's HTML ──
+  const buildColHTML = ({ day, person }) => {
     const headerLabel = isMultiDay ? `${day.slice(0, 3)} · ${esc(person)}` : esc(person);
     const placements  = (state.schedule[day] || {})[person] || [];
 
-    // Hour + half-hour guide lines
     let linesHTML = '';
     for (let h = START_HOUR; h < END_HOUR; h++) {
       linesHTML += `<div class="hl" style="top:${(h - START_HOUR) * 50}px"></div>`;
       linesHTML += `<div class="hl half" style="top:${(h - START_HOUR) * 50 + 25}px"></div>`;
     }
 
-    // Placed cards
     let cardsHTML = '';
     placements.forEach(pl => {
       const card = state.cards.find(c => c.id === pl.cardId);
@@ -1707,15 +1705,34 @@ function printSchedule() {
       </div>`;
     });
 
-    colsHTML += `<div class="gc">
+    return `<div class="gc">
       <div class="ch">${headerLabel}</div>
       <div class="cs" style="height:${TOTAL_H}px">${linesHTML}${cardsHTML}</div>
     </div>`;
-  });
+  };
 
   const dayLabel  = state.selectedDays.join(', ');
   const sortLabel = gridSort === 'person' ? 'Sorted by Person' : 'Sorted by Day';
   const dateStr   = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+
+  const pageHeader = `<div class="ph">
+  <h1>My Scheduler</h1>
+  <p>${esc(dayLabel)} &nbsp;·&nbsp; ${sortLabel} &nbsp;·&nbsp; ${esc(dateStr)}</p>
+</div>`;
+
+  // ── Chunk columns into pages and build page sections ──
+  let pagesHTML = '';
+  for (let i = 0; i < colPairs.length; i += COLS_PER_PAGE) {
+    const chunk   = colPairs.slice(i, i + COLS_PER_PAGE);
+    const isLast  = i + COLS_PER_PAGE >= colPairs.length;
+    const colsHTML = chunk.map(buildColHTML).join('');
+    pagesHTML += `<div class="${isLast ? 'page' : 'page page-break'}">
+${pageHeader}<div class="pg">
+  <div class="tc">${timeHTML}</div>
+  ${colsHTML}
+</div>
+</div>`;
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1739,6 +1756,7 @@ function printSchedule() {
   .pc  { position: absolute; left: 2px; right: 2px; border-radius: 3px; padding: 2px 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
   .pn  { font-weight: 700; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pt  { font-size: 8px; color: #333; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .page-break { break-after: page; page-break-after: always; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page { margin: 0.4in; ${landscape ? 'size: landscape;' : ''} }
@@ -1746,14 +1764,7 @@ function printSchedule() {
 </style>
 </head>
 <body>
-<div class="ph">
-  <h1>My Scheduler</h1>
-  <p>${esc(dayLabel)} &nbsp;·&nbsp; ${sortLabel} &nbsp;·&nbsp; ${esc(dateStr)}</p>
-</div>
-<div class="pg">
-  <div class="tc">${timeHTML}</div>
-  ${colsHTML}
-</div>
+${pagesHTML}
 </body>
 </html>`;
 
