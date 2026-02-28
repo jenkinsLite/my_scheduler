@@ -5,33 +5,33 @@
 
 /* ===== CSS Custom Properties ===== */
 :root {
-  /* Color palette — natural, high-contrast */
-  --clr-primary:       #3d6b4f;
-  --clr-primary-dk:    #2a4b37;
-  --clr-primary-lt:    #c2dbc9;
-  --clr-accent:        #7a9e87;
-  --clr-accent-lt:     #ddeee2;
-  --clr-bg:            #f7f4ef;
-  --clr-surface:       #ffffff;
-  --clr-surface-alt:   #f0ece5;
-  --clr-text:          #1e1e1e;
-  --clr-text-muted:    #555555;
-  --clr-border:        #c0b8ac;
-  --clr-border-lt:     #ddd7ce;
+  /* Color palette */
+  --clr-primary:       #98ACAB;   /* muted teal */
+  --clr-primary-dk:    #234141;   /* dark forest */
+  --clr-primary-lt:    #C0D4D4;   /* light teal (derived) */
+  --clr-accent:        #A37663;   /* warm terracotta */
+  --clr-accent-lt:     #D0BFA5;   /* warm tan */
+  --clr-bg:            #EDEBDC;   /* warm cream */
+  --clr-surface:       #FFFFFF;
+  --clr-surface-alt:   #D1C6B4;   /* stone */
+  --clr-text:          #234141;   /* dark forest */
+  --clr-text-muted:    #666A59;   /* olive grey */
+  --clr-border:        #8C9289;   /* grey-green */
+  --clr-border-lt:     #A09A80;   /* warm khaki */
 
   /* Button colours */
-  --clr-day-btn-bg:    #6a9ea0;
-  --clr-day-btn-text:  #ffffff;
-  --clr-name-btn-bg:   #9db8a5;
-  --clr-name-btn-text: #1a2e1e;
+  --clr-day-btn-bg:    #234141;   /* dark forest */
+  --clr-day-btn-text:  #FFFFFF;
+  --clr-name-btn-bg:   #BA9D99;   /* muted rose */
+  --clr-name-btn-text: #FFFFFF;
 
   /* Card states */
-  --clr-card-bg:       #fffef8;
-  --clr-placed-full:   #a8d5b5;   /* soft pastel green when fully placed */
+  --clr-card-bg:       #E7E0D0;   /* warm parchment */
+  --clr-placed-full:   #98ACAB;   /* muted teal */
 
   /* Danger */
-  --clr-danger:        #c0392b;
-  --clr-danger-lt:     #fdeaea;
+  --clr-danger:        #715959;   /* muted chestnut */
+  --clr-danger-lt:     #E8DADA;   /* pale rose (derived) */
 
   /* Shadows */
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.10);
@@ -70,7 +70,7 @@ html {
 }
 
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: var(--fs-md);
   line-height: var(--lh);
   background: var(--clr-bg);
@@ -160,6 +160,7 @@ nav[role="navigation"] {
   gap: 0.5rem;
   overflow-x: auto;
   flex-shrink: 0;
+  border-bottom: 2px solid #A37663;
 }
 nav ul {
   list-style: none;
@@ -716,13 +717,13 @@ nav ul {
 .activity-card.card-selected {
   outline: 2px solid var(--clr-primary);
   outline-offset: -2px;
-  box-shadow: 0 0 0 4px rgba(61, 107, 79, 0.18);
+  box-shadow: 0 0 0 4px rgba(152, 172, 171, 0.30);
 }
 
 .placed-card.placed-selected {
   outline: 2px solid var(--clr-primary);
   outline-offset: -2px;
-  box-shadow: 0 0 0 4px rgba(61, 107, 79, 0.28);
+  box-shadow: 0 0 0 4px rgba(152, 172, 171, 0.45);
   z-index: 4;
 }
 
@@ -746,7 +747,7 @@ nav ul {
 .rubber-band-rect {
   position: fixed;
   border: 1.5px dashed var(--clr-primary);
-  background: rgba(61, 107, 79, 0.07);
+  background: rgba(152, 172, 171, 0.15);
   pointer-events: none;
   z-index: 9999;
 }
@@ -785,7 +786,7 @@ nav ul {
 }
 .card-drag-handle:hover {
   color: var(--clr-primary);
-  background: rgba(61, 107, 79, 0.07);
+  background: rgba(152, 172, 171, 0.15);
 }
 .card-drag-handle:active { cursor: grabbing; }
 
@@ -1048,13 +1049,13 @@ nav ul {
 .col-header {
   position: sticky;
   top: 0;
-  background: var(--clr-accent-lt);
+  background: var(--clr-primary-dk);
   border-bottom: 2px solid var(--clr-primary);
   padding: 0.35rem;
   text-align: center;
   font-size: var(--fs-sm);
   font-weight: 700;
-  color: var(--clr-primary-dk);
+  color: #FFFFFF;
   z-index: 5;
   white-space: nowrap;
   overflow: hidden;
@@ -1073,8 +1074,6 @@ nav ul {
   display: block;
   font-size: 0.65rem;
   font-weight: 400;
-  color: var(--clr-primary);
-  opacity: 0.75;
   line-height: 1.2;
 }
 
@@ -1095,7 +1094,7 @@ nav ul {
 
 /* Drop zone highlight */
 .grid-column.drop-over .col-slots {
-  background: rgba(61, 107, 79, 0.08);
+  background: rgba(152, 172, 171, 0.18);
 }
 
 /* ===== Placed Card (inside grid) ===== */

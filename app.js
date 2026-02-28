@@ -1768,22 +1768,22 @@ ${pageHeader}<div class="pg">
 <title>My Scheduler — ${esc(dayLabel)}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; color: #111; background: #fff; }
-  .ph  { padding: 10px 14px 8px; border-bottom: 2px solid #2a4a3a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
-  .ph h1 { font-size: 16px; color: #2a4a3a; }
-  .ph p  { font-size: 9px; color: #555; }
+  body { font-family: Georgia, 'Times New Roman', serif; font-size: 11px; color: #234141; background: #fff; }
+  .ph  { padding: 10px 14px 8px; border-bottom: 2px solid #234141; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .ph h1 { font-size: 16px; color: #234141; }
+  .ph p  { font-size: 9px; color: #666A59; }
   .pg  { display: flex; align-items: stretch; padding: 0 14px; gap: 0; }
   .tc  { flex: 0 0 48px; position: relative; }
-  .tl  { position: absolute; left: 0; right: 4px; font-size: 8px; color: #888; text-align: right; line-height: 1; transform: translateY(-50%); }
-  .gc  { flex: 1; min-width: 80px; border-left: 1px solid #bbb; border-bottom: 2px solid #3d6b4f; display: flex; flex-direction: column; }
-  .gc:last-child { border-right: 1px solid #bbb; }
-  .ch  { height: ${CH_HEIGHT}px; padding: 3px 5px; font-size: 10px; font-weight: 700; background: #eef4f0; border-bottom: 2px solid #3d6b4f; text-align: center; color: #2a4a3a; overflow: hidden; box-sizing: border-box; }
+  .tl  { position: absolute; left: 0; right: 4px; font-size: 8px; color: #666A59; text-align: right; line-height: 1; transform: translateY(-50%); }
+  .gc  { flex: 1; min-width: 80px; border-left: 1px solid #8C9289; border-bottom: 2px solid #98ACAB; display: flex; flex-direction: column; }
+  .gc:last-child { border-right: 1px solid #8C9289; }
+  .ch  { height: ${CH_HEIGHT}px; padding: 3px 5px; font-size: 10px; font-weight: 700; background: #234141; border-bottom: 2px solid #98ACAB; text-align: center; color: #FFFFFF; overflow: hidden; box-sizing: border-box; }
   .cs  { position: relative; }
-  .hl  { position: absolute; left: 0; right: 0; border-top: 1px solid #e4e4e4; }
-  .hl.half { border-top-style: dashed; border-top-color: #efefef; }
+  .hl  { position: absolute; left: 0; right: 0; border-top: 1px solid #D1C6B4; }
+  .hl.half { border-top-style: dashed; border-top-color: #E7E0D0; }
   .pc  { position: absolute; left: 2px; right: 2px; border-radius: 3px; padding: 2px 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
   .pn  { font-weight: 700; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pt  { font-size: 8px; color: #333; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pt  { font-size: 8px; color: #666A59; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .page-break { break-after: page; page-break-after: always; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
