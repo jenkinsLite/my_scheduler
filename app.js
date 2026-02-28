@@ -1470,6 +1470,129 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   showToast(`${label} cleared`);
 });
 
+// ── UI: Print ───────────────────────────────────────────────
+document.getElementById('print-btn').addEventListener('click', printSchedule);
+
+function printSchedule() {
+  if (state.selectedPeople.length === 0) { showToast('Select at least one person to print'); return; }
+  if (state.selectedDays.length   === 0) { showToast('Select at least one day to print');    return; }
+
+  // Build column pairs in the same order as the grid
+  const isMultiDay = state.selectedDays.length > 1;
+  const colPairs = [];
+  if (gridSort === 'person') {
+    state.selectedPeople.forEach(person =>
+      state.selectedDays.forEach(day => colPairs.push({ day, person }))
+    );
+  } else {
+    state.selectedDays.forEach(day =>
+      state.selectedPeople.forEach(person => colPairs.push({ day, person }))
+    );
+  }
+
+  const PX_PER_MIN  = 50 / 60;                        // 50 px per hour
+  const TOTAL_H     = (END_HOUR - START_HOUR) * 50;   // px height of slot area
+  const landscape   = colPairs.length >= 4;
+
+  // Simple HTML-escape for print output
+  const esc = s => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // ── Time column ──
+  let timeHTML = '';
+  for (let h = START_HOUR; h <= END_HOUR; h++) {
+    const top   = (h - START_HOUR) * 50;
+    const label = minutesToLabel((h - START_HOUR) * 60);
+    timeHTML += `<div class="tl" style="top:${top}px">${esc(label)}</div>`;
+  }
+
+  // ── Grid columns ──
+  let colsHTML = '';
+  colPairs.forEach(({ day, person }) => {
+    const headerLabel = isMultiDay ? `${day.slice(0, 3)} · ${esc(person)}` : esc(person);
+    const placements  = (state.schedule[day] || {})[person] || [];
+
+    // Hour + half-hour guide lines
+    let linesHTML = '';
+    for (let h = START_HOUR; h < END_HOUR; h++) {
+      linesHTML += `<div class="hl" style="top:${(h - START_HOUR) * 50}px"></div>`;
+      linesHTML += `<div class="hl half" style="top:${(h - START_HOUR) * 50 + 25}px"></div>`;
+    }
+
+    // Placed cards
+    let cardsHTML = '';
+    placements.forEach(pl => {
+      const card = state.cards.find(c => c.id === pl.cardId);
+      if (!card) return;
+      const top    = pl.slotIndex * SLOT_MIN * PX_PER_MIN;
+      const height = Math.max(18, card.time * PX_PER_MIN);
+      const color  = esc(state.personColors[card.assignedPerson] || '#e0e8e4');
+      const time   = esc(minutesToLabel(pl.slotIndex * SLOT_MIN));
+      cardsHTML += `<div class="pc" style="top:${top.toFixed(1)}px;height:${height.toFixed(1)}px;background:${color}">
+        <div class="pn">${esc(card.name)}</div>
+        <div class="pt">${time} · ${card.time} min</div>
+      </div>`;
+    });
+
+    colsHTML += `<div class="gc">
+      <div class="ch">${headerLabel}</div>
+      <div class="cs" style="height:${TOTAL_H}px">${linesHTML}${cardsHTML}</div>
+    </div>`;
+  });
+
+  const dayLabel  = state.selectedDays.join(', ');
+  const sortLabel = gridSort === 'person' ? 'Sorted by Person' : 'Sorted by Day';
+  const dateStr   = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Scheduler — ${esc(dayLabel)}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; color: #111; background: #fff; }
+  .ph  { padding: 10px 14px 8px; border-bottom: 2px solid #2a4a3a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .ph h1 { font-size: 16px; color: #2a4a3a; }
+  .ph p  { font-size: 9px; color: #555; }
+  .pg  { display: flex; align-items: flex-start; padding: 0 14px; gap: 0; }
+  .tc  { flex: 0 0 48px; position: relative; height: ${TOTAL_H + 24}px; }
+  .tl  { position: absolute; left: 0; right: 4px; font-size: 8px; color: #888; text-align: right; line-height: 1; transform: translateY(-50%); }
+  .gc  { flex: 1; min-width: 80px; border-left: 1px solid #bbb; display: flex; flex-direction: column; }
+  .ch  { padding: 3px 5px; font-size: 10px; font-weight: 700; background: #eef4f0; border-bottom: 2px solid #3d6b4f; text-align: center; color: #2a4a3a; }
+  .cs  { position: relative; }
+  .hl  { position: absolute; left: 0; right: 0; border-top: 1px solid #e4e4e4; }
+  .hl.half { border-top-style: dashed; border-top-color: #efefef; }
+  .pc  { position: absolute; left: 2px; right: 2px; border-radius: 3px; padding: 2px 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
+  .pn  { font-weight: 700; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pt  { font-size: 8px; color: #333; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 0.4in; ${landscape ? 'size: landscape;' : ''} }
+  }
+</style>
+</head>
+<body>
+<div class="ph">
+  <h1>My Scheduler</h1>
+  <p>${esc(dayLabel)} &nbsp;·&nbsp; ${sortLabel} &nbsp;·&nbsp; ${esc(dateStr)}</p>
+</div>
+<div class="pg">
+  <div class="tc">${timeHTML}</div>
+  ${colsHTML}
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { showToast('Pop-up blocked — please allow pop-ups and try again'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
 // ── Render All ──────────────────────────────────────────────
 function renderAll() {
   renderDayButtons();
