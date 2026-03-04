@@ -57,6 +57,32 @@ function toggleCardSelection(cardId) {
 
 const selectedPlacedIds = new Set(); // instanceIds of selected placed cards in the grid
 
+// ── History (undo/redo) ─────────────────────────────────────
+const MAX_HISTORY = 50;
+const HISTORY_KEY = 'cm_history';
+let undoStack = [];   // array of JSON strings (oldest → newest)
+let redoStack = [];
+
+function saveHistory() {
+  try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify({ u: undoStack, r: redoStack })); }
+  catch(e) { /* quota exceeded — silently ignore */ }
+}
+
+function loadHistory() {
+  try {
+    const h = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || '{}');
+    undoStack = Array.isArray(h.u) ? h.u : [];
+    redoStack = Array.isArray(h.r) ? h.r : [];
+  } catch { undoStack = []; redoStack = []; }
+}
+
+function updateUndoButtons() {
+  const u = document.getElementById('undo-btn');
+  const r = document.getElementById('redo-btn');
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
 function clearPlacedSelection() {
   selectedPlacedIds.clear();
   document.querySelectorAll('.placed-card.placed-selected')
@@ -117,8 +143,39 @@ function showToast(msg) {
 
 // ── Persistence ────────────────────────────────────────────
 function saveState() {
+  undoStack.push(JSON.stringify(state));
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack = [];
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e) { console.error('Save failed', e); }
+  saveHistory();
+  updateUndoButtons();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(state));
+  state = JSON.parse(undoStack.pop());
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e) { console.error('Save failed', e); }
+  selectedCardIds.clear();
+  selectedPlacedIds.clear();
+  saveHistory();
+  renderAll();
+  updateUndoButtons();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(state));
+  state = JSON.parse(redoStack.pop());
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e) { console.error('Save failed', e); }
+  selectedCardIds.clear();
+  selectedPlacedIds.clear();
+  saveHistory();
+  renderAll();
+  updateUndoButtons();
 }
 
 function parseCard(c) {
@@ -187,6 +244,8 @@ function loadState() {
       });
     }
   } catch(e) { console.error('Load failed', e); }
+  loadHistory();
+  updateUndoButtons();
 }
 
 // ── Placed-count helpers ────────────────────────────────────
@@ -1669,6 +1728,8 @@ document.getElementById('clear-btn').addEventListener('click', () => {
 
 // ── UI: Print ───────────────────────────────────────────────
 document.getElementById('print-btn').addEventListener('click', printSchedule);
+document.getElementById('undo-btn').addEventListener('click', undo);
+document.getElementById('redo-btn').addEventListener('click', redo);
 
 function printSchedule() {
   if (state.selectedPeople.length === 0) { showToast('Select at least one person to print'); return; }
@@ -1960,6 +2021,18 @@ document.addEventListener('keydown', e => {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     e.preventDefault();
     deleteSelectedPlaced();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    undo();
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    redo();
   }
 });
 
