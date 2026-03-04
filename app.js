@@ -295,12 +295,9 @@ function renderDayButtons() {
 function updateLayoutClass() {
   const multiDay = state.selectedDays.length > 1;
   const ca = document.querySelector('.content-area');
-  const wasMultiDay = ca ? ca.classList.contains('multi-day') : false;
   if (ca) ca.classList.toggle('multi-day', multiDay);
   const sortSel = document.getElementById('grid-sort-select');
   if (sortSel) sortSel.hidden = !multiDay;
-  // Collapse the activity panel when first entering multi-day mode
-  if (multiDay && !wasMultiDay && _collapsePanel) _collapsePanel();
 }
 
 // ── Render: Name buttons ────────────────────────────────────
