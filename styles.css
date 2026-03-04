@@ -182,6 +182,46 @@ nav ul {
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 .nav-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); color: #fff; }
+.nav-btn:disabled { opacity: 0.38; cursor: default; }
+.nav-btn:disabled:hover { background: transparent; border-color: rgba(255,255,255,0.3); }
+
+/* ===== Nav tooltips (JS-positioned, fixed to body) ===== */
+.nav-tip {
+  position: fixed;
+  width: 210px;
+  background: var(--clr-primary-dk);
+  color: var(--clr-bg);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: normal;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: var(--shadow-md);
+}
+.nav-tip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: var(--arrow-left, 50%);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--clr-primary-dk);
+}
+.nav-tip strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1.02rem;
+  color: #fff;
+}
+.nav-tip-key {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: monospace;
+  font-size: 0.84rem;
+  color: var(--clr-primary-lt);
+}
 
 /* ===== Main ===== */
 #main-section {

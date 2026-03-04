@@ -2140,6 +2140,43 @@ function renderAll() {
   }, { passive: false });
 })();
 
+// ── Nav tooltips ────────────────────────────────────────────
+(function () {
+  const tip = document.createElement('div');
+  tip.className = 'nav-tip';
+  tip.setAttribute('role', 'tooltip');
+  tip.style.display = 'none';
+  document.body.appendChild(tip);
+
+  let timer;
+
+  document.querySelectorAll('.nav-btn[data-tip-title]').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      timer = setTimeout(() => {
+        const key = btn.dataset.tipKey
+          ? `<span class="nav-tip-key">${btn.dataset.tipKey}</span>` : '';
+        tip.innerHTML = `<strong>${btn.dataset.tipTitle}</strong>${btn.dataset.tipBody || ''}${key}`;
+        tip.style.display = '';
+
+        const r = btn.getBoundingClientRect();
+        const tw = tip.offsetWidth;
+        const left = Math.max(8, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 8));
+        tip.style.left = left + 'px';
+        tip.style.top  = (r.bottom + 10) + 'px';
+
+        // Position arrow relative to button centre
+        const arrowLeft = (r.left + r.width / 2) - left;
+        tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+      }, 280);
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      clearTimeout(timer);
+      tip.style.display = 'none';
+    });
+  });
+})();
+
 // ── Init ────────────────────────────────────────────────────
 loadState();
 renderAll();

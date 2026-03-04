@@ -32,34 +32,36 @@
   <nav role="navigation" aria-label="Application controls">
     <ul role="list">
       <li>
-        <button class="nav-btn" id="undo-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-          &#8617; Undo
-        </button>
+        <button class="nav-btn" id="undo-btn" aria-label="Undo"
+          data-tip-title="Undo"
+          data-tip-body="Reverse the last change. Up to 50 steps are kept per session."
+          data-tip-key="Ctrl+Z" disabled>&#8617; Undo</button>
       </li>
       <li>
-        <button class="nav-btn" id="redo-btn" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
-          &#8618; Redo
-        </button>
+        <button class="nav-btn" id="redo-btn" aria-label="Redo"
+          data-tip-title="Redo"
+          data-tip-body="Re-apply the last undone change."
+          data-tip-key="Ctrl+Y / Ctrl+Shift+Z" disabled>&#8618; Redo</button>
       </li>
       <li>
-        <button class="nav-btn" id="export-btn" aria-label="Export schedule as JSON file">
-          Export
-        </button>
+        <button class="nav-btn" id="export-btn" aria-label="Export schedule as JSON file"
+          data-tip-title="Export"
+          data-tip-body="Download the full schedule as a JSON file for backup or sharing.">Export</button>
       </li>
       <li>
-        <button class="nav-btn" id="import-btn" aria-label="Import schedule from JSON file">
-          Import
-        </button>
+        <button class="nav-btn" id="import-btn" aria-label="Import schedule from JSON file"
+          data-tip-title="Import"
+          data-tip-body="Load a previously exported JSON file, replacing the current schedule.">Import</button>
       </li>
       <li>
-        <button class="nav-btn" id="clear-btn" aria-label="Clear all placements for selected day">
-          Clear Day
-        </button>
+        <button class="nav-btn" id="clear-btn" aria-label="Clear all placements for selected day"
+          data-tip-title="Clear Day"
+          data-tip-body="Remove all placed activities from the currently selected day(s).">Clear Day</button>
       </li>
       <li>
-        <button class="nav-btn" id="print-btn" aria-label="Print schedule">
-          Print
-        </button>
+        <button class="nav-btn" id="print-btn" aria-label="Print schedule"
+          data-tip-title="Print"
+          data-tip-body="Open a print-ready view for the selected days and people, paginated at 5 columns per page.">Print</button>
       </li>
     </ul>
     <!-- Hidden file input for import -->
