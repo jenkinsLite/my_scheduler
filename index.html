@@ -202,6 +202,17 @@
     <p>My Scheduler &mdash; All data is stored locally in your browser. No accounts, no servers.</p>
   </footer>
 
+  <!-- ===== CONFIRM MODAL ===== -->
+  <div id="confirm-modal" class="modal-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="confirm-msg">
+    <div class="modal-box">
+      <p id="confirm-msg" class="modal-msg"></p>
+      <div class="modal-actions">
+        <button id="confirm-ok"  class="modal-btn modal-btn--danger">Confirm</button>
+        <button id="confirm-cancel" class="modal-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

@@ -131,6 +131,32 @@ function minutesToLabel(minutesFromStart) {
   return `${dh}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function showConfirm(msg, onConfirm, okLabel = 'Confirm') {
+  const overlay   = document.getElementById('confirm-modal');
+  const msgEl     = document.getElementById('confirm-msg');
+  const okBtn     = document.getElementById('confirm-ok');
+  const cancelBtn = document.getElementById('confirm-cancel');
+
+  msgEl.textContent = msg;
+  okBtn.textContent = okLabel;
+  overlay.hidden = false;
+  okBtn.focus();
+
+  const close = () => {
+    overlay.hidden = true;
+    document.removeEventListener('keydown', onKey);
+  };
+  const onKey = e => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    if (e.key === 'Enter')  { e.preventDefault(); close(); onConfirm(); }
+  };
+
+  okBtn.onclick     = () => { close(); onConfirm(); };
+  cancelBtn.onclick = close;
+  overlay.onclick   = e => { if (e.target === overlay) close(); };
+  document.addEventListener('keydown', onKey);
+}
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
@@ -1719,11 +1745,12 @@ document.getElementById('import-file').addEventListener('change', function () {
 document.getElementById('clear-btn').addEventListener('click', () => {
   const days = state.selectedDays;
   const label = days.length === 1 ? days[0] : `${days.length} selected days`;
-  if (!confirm(`Clear all placements for ${label}?`)) return;
-  days.forEach(d => { state.schedule[d] = {}; });
-  saveState();
-  renderGrid();
-  showToast(`${label} cleared`);
+  showConfirm(`Clear all placements for ${label}?`, () => {
+    days.forEach(d => { state.schedule[d] = {}; });
+    saveState();
+    renderGrid();
+    showToast(`${label} cleared`);
+  }, 'Clear');
 });
 
 // ── UI: Print ───────────────────────────────────────────────
