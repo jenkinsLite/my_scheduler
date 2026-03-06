@@ -1199,10 +1199,14 @@ body.col-resizing .col-resize-handle::after { background: rgba(255,255,255,0.75)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 .placed-duration {
   font-size: 0.62rem;
   color: var(--clr-text-muted);
+  overflow: hidden;
+  min-height: 0;
+  flex-shrink: 1;
 }
 
 .remove-placed-btn {
