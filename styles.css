@@ -1070,8 +1070,9 @@ nav ul {
   white-space: nowrap;
   border-bottom: 1px solid transparent;
 }
-.time-label.show { color: var(--clr-text-muted); }
-.time-label.hour { font-weight: 700; color: var(--clr-text); font-size: 0.68rem; border-bottom-color: var(--clr-border); }
+.time-label.tick-bold  { font-weight: 700; color: var(--clr-text-muted); font-size: 0.6rem; }
+.time-label.tick-light { font-weight: 400; color: var(--clr-border);      font-size: 0.6rem; }
+.time-label.hour       { font-weight: 700; color: var(--clr-text);         font-size: 0.68rem; border-bottom-color: var(--clr-border); }
 
 /* ===== Schedule Grid ===== */
 .schedule-grid {

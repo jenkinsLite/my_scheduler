@@ -818,18 +818,17 @@ function renderGrid() {
 
   // ── Time labels ──
   for (let i = 0; i < TOTAL_SLOTS; i++) {
-    const label   = document.createElement('div');
+    const label = document.createElement('div');
     label.className = 'time-label';
     label.style.height = unitPx() + 'px';
-    const mins    = i * SLOT_MIN;
-    const isHour  = mins % 60 === 0;
-    const isHalf  = mins % 30 === 0;
-    if (isHour) {
+    const mins = i * SLOT_MIN;
+    label.textContent = minutesToLabel(mins);
+    if (mins % 60 === 0) {
       label.classList.add('hour');
-      label.textContent = minutesToLabel(mins);
-    } else if (isHalf) {
-      label.classList.add('show');
-      label.textContent = minutesToLabel(mins);
+    } else if (i % 2 === 0) {
+      label.classList.add('tick-bold');
+    } else {
+      label.classList.add('tick-light');
     }
     timeCol.appendChild(label);
   }
