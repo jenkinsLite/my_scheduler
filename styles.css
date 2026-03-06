@@ -1005,6 +1005,9 @@ nav ul {
     order: 0;
     margin-left: auto;
   }
+  .zoom-controls + .zoom-controls {
+    margin-left: 0.8rem;
+  }
 }
 
 .zoom-label {
@@ -1013,13 +1016,15 @@ nav ul {
   color: var(--clr-text-muted);
 }
 
-#zoom-slider {
+#zoom-slider,
+#col-zoom-slider {
   width: 130px;
   accent-color: var(--clr-primary);
   cursor: pointer;
 }
 
-#zoom-display {
+#zoom-display,
+#col-zoom-display {
   font-size: var(--fs-sm);
   color: var(--clr-text-muted);
   min-width: 48px;

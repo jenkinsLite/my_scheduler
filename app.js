@@ -13,7 +13,9 @@ const SLOT_MIN     = 5;    // minutes per grid row
 const TOTAL_SLOTS  = ((END_HOUR - START_HOUR) * 60) / SLOT_MIN;  // 144
 const STORAGE_KEY   = 'cm_scheduler_v1';
 const COL_WIDTH_KEY = 'cm_col_widths';
-const BASE_UNIT_PX = 12;   // px per slot at 100 % zoom
+const COL_ZOOM_KEY  = 'cm_col_zoom';
+const BASE_UNIT_PX  = 12;   // px per slot at 100 % zoom
+const BASE_COL_PX   = 150;  // default column width at 100 % col-zoom
 let   _idCounter   = Date.now();
 
 const PERSON_COLORS = [
@@ -32,7 +34,8 @@ let state = {
   personColors:  {}
 };
 
-let zoomLevel      = 100;    // percent
+let zoomLevel      = 100;    // percent (time / vertical zoom)
+let colZoom        = 100;    // percent (person/day / horizontal zoom)
 let dragState      = null;   // active drag info
 let gridSort       = 'day';  // 'day' | 'person'
 let _collapsePanel = null;   // set by initPanelResizer
@@ -97,6 +100,18 @@ function loadColWidths() {
     const parsed = JSON.parse(localStorage.getItem(COL_WIDTH_KEY) || '{}');
     colWidths = (parsed && typeof parsed === 'object') ? parsed : {};
   } catch { colWidths = {}; }
+}
+
+function saveColZoom() {
+  try { localStorage.setItem(COL_ZOOM_KEY, String(colZoom)); }
+  catch(e) { /* ignore */ }
+}
+
+function loadColZoom() {
+  try {
+    const v = parseInt(localStorage.getItem(COL_ZOOM_KEY));
+    colZoom = (!isNaN(v) && v >= 25 && v <= 400) ? v : 100;
+  } catch { colZoom = 100; }
 }
 
 const _measureCtx = document.createElement('canvas').getContext('2d');
@@ -295,6 +310,7 @@ function loadState() {
   loadHistory();
   updateUndoButtons();
   loadColWidths();
+  loadColZoom();
 }
 
 // ── Placed-count helpers ────────────────────────────────────
@@ -871,12 +887,11 @@ function renderGrid() {
     resizeHandle.setAttribute('aria-hidden', 'true');
     colHeader.appendChild(resizeHandle);
 
-    // Apply stored column width
-    if (colWidths[person] != null) {
-      col.style.flex = 'none';
-      col.style.minWidth = '0';
-      col.style.width = colWidths[person] + 'px';
-    }
+    // Apply column width: base width (stored or default) scaled by colZoom
+    const baseW = colWidths[person] != null ? colWidths[person] : BASE_COL_PX;
+    col.style.flex = 'none';
+    col.style.minWidth = '0';
+    col.style.width = Math.max(8, Math.round(baseW * colZoom / 100)) + 'px';
 
     // Drag-to-resize (min = handle width so column can be fully collapsed)
     resizeHandle.addEventListener('mousedown', e => {
@@ -895,7 +910,7 @@ function renderGrid() {
       };
       const onUp = () => {
         document.body.classList.remove('col-resizing');
-        colWidths[person] = col.offsetWidth;
+        colWidths[person] = Math.round(col.offsetWidth * 100 / colZoom);
         saveColWidths();
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
@@ -923,7 +938,7 @@ function renderGrid() {
       col.style.flex = 'none';
       col.style.minWidth = '0';
       col.style.width = w + 'px';
-      colWidths[person] = w;
+      colWidths[person] = Math.round(w * 100 / colZoom);
       saveColWidths();
     });
 
@@ -1747,6 +1762,16 @@ zoomSlider.addEventListener('input', () => {
   updateBadges();
 });
 
+const colZoomSlider  = document.getElementById('col-zoom-slider');
+const colZoomDisplay = document.getElementById('col-zoom-display');
+
+colZoomSlider.addEventListener('input', () => {
+  colZoom = parseInt(colZoomSlider.value);
+  colZoomDisplay.textContent = colZoom + '%';
+  saveColZoom();
+  renderGrid();
+});
+
 // ── UI: Fullscreen ──────────────────────────────────────────
 function setFullscreen(on) {
   const main   = document.getElementById('main-section');
@@ -2294,4 +2319,7 @@ function renderAll() {
 
 // ── Init ────────────────────────────────────────────────────
 loadState();
+// Sync col-zoom slider to persisted value
+colZoomSlider.value = colZoom;
+colZoomDisplay.textContent = colZoom + '%';
 renderAll();

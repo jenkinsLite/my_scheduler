@@ -170,7 +170,20 @@
             </select>
           </div>
           <div class="zoom-controls">
-            <label for="zoom-slider" class="zoom-label">Zoom</label>
+            <label for="col-zoom-slider" class="zoom-label">Person/Day zoom</label>
+            <input
+              type="range"
+              id="col-zoom-slider"
+              min="25"
+              max="400"
+              value="100"
+              step="5"
+              aria-label="Column width zoom level"
+            />
+            <output id="col-zoom-display" for="col-zoom-slider" aria-live="polite">100%</output>
+          </div>
+          <div class="zoom-controls">
+            <label for="zoom-slider" class="zoom-label">Time zoom</label>
             <input
               type="range"
               id="zoom-slider"
