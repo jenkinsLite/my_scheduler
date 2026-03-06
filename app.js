@@ -11,7 +11,8 @@ const START_HOUR   = 6;    // 6:00 AM
 const END_HOUR     = 18;   // 6:00 PM
 const SLOT_MIN     = 5;    // minutes per grid row
 const TOTAL_SLOTS  = ((END_HOUR - START_HOUR) * 60) / SLOT_MIN;  // 144
-const STORAGE_KEY  = 'cm_scheduler_v1';
+const STORAGE_KEY   = 'cm_scheduler_v1';
+const COL_WIDTH_KEY = 'cm_col_widths';
 const BASE_UNIT_PX = 12;   // px per slot at 100 % zoom
 let   _idCounter   = Date.now();
 
@@ -81,6 +82,27 @@ function updateUndoButtons() {
   const r = document.getElementById('redo-btn');
   if (u) u.disabled = undoStack.length === 0;
   if (r) r.disabled = redoStack.length === 0;
+}
+
+// ── Column widths ───────────────────────────────────────────
+let colWidths = {};  // keyed by person name → px width
+
+function saveColWidths() {
+  try { localStorage.setItem(COL_WIDTH_KEY, JSON.stringify(colWidths)); }
+  catch(e) { /* ignore */ }
+}
+
+function loadColWidths() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COL_WIDTH_KEY) || '{}');
+    colWidths = (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch { colWidths = {}; }
+}
+
+const _measureCtx = document.createElement('canvas').getContext('2d');
+function measureTextPx(text, font) {
+  _measureCtx.font = font;
+  return _measureCtx.measureText(text).width;
 }
 
 function clearPlacedSelection() {
@@ -272,6 +294,7 @@ function loadState() {
   } catch(e) { console.error('Load failed', e); }
   loadHistory();
   updateUndoButtons();
+  loadColWidths();
 }
 
 // ── Placed-count helpers ────────────────────────────────────
@@ -835,6 +858,68 @@ function renderGrid() {
     const personSpan = document.createElement('span');
     personSpan.textContent = person;
     colHeader.appendChild(personSpan);
+
+    // Resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'col-resize-handle';
+    resizeHandle.setAttribute('aria-hidden', 'true');
+    colHeader.appendChild(resizeHandle);
+
+    // Apply stored column width
+    if (colWidths[person] != null) {
+      col.style.flex = 'none';
+      col.style.minWidth = '0';
+      col.style.width = colWidths[person] + 'px';
+    }
+
+    // Drag-to-resize (min = handle width so column can be fully collapsed)
+    resizeHandle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = col.offsetWidth;
+      const MIN_W = 8; // just enough to show the handle
+      document.body.classList.add('col-resizing');
+
+      const onMove = ev => {
+        const w = Math.max(MIN_W, startW + ev.clientX - startX);
+        col.style.flex = 'none';
+        col.style.minWidth = '0';
+        col.style.width = w + 'px';
+      };
+      const onUp = () => {
+        document.body.classList.remove('col-resizing');
+        colWidths[person] = col.offsetWidth;
+        saveColWidths();
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // Double-click handle → auto-fit to widest content
+    resizeHandle.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      const headerFont = getComputedStyle(personSpan).font;
+      let maxW = 0;
+      colHeader.querySelectorAll('span:not(.col-resize-handle)').forEach(s => {
+        maxW = Math.max(maxW, measureTextPx(s.textContent, headerFont));
+      });
+      maxW += 32; // header padding + handle space
+
+      col.querySelectorAll('.placed-name').forEach(el => {
+        const font = getComputedStyle(el).font;
+        maxW = Math.max(maxW, measureTextPx(el.textContent, font) + 32);
+      });
+
+      const w = Math.max(80, Math.ceil(maxW));
+      col.style.flex = 'none';
+      col.style.minWidth = '0';
+      col.style.width = w + 'px';
+      colWidths[person] = w;
+      saveColWidths();
+    });
 
     // Slot container
     const slots = col.appendChild(document.createElement('div'));
