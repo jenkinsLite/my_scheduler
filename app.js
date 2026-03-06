@@ -849,6 +849,12 @@ function renderGrid() {
     const colHeader = col.appendChild(document.createElement('div'));
     colHeader.className = 'col-header';
     colHeader.setAttribute('aria-hidden', 'true');
+    const personColor = state.personColors[person];
+    if (personColor) {
+      colHeader.style.background = personColor;
+      colHeader.style.color = '#343232';
+      colHeader.style.borderBottomColor = personColor;
+    }
     if (isMultiDay) {
       const dayLabel = document.createElement('span');
       dayLabel.className = 'col-day-label';
