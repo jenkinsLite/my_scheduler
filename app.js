@@ -518,7 +518,12 @@ function deletePerson(name) {
 function renderCards() {
   const list = document.getElementById('card-list');
   list.innerHTML = '';
-  state.cards.forEach(card => {
+  const sorted = [...state.cards].sort((a, b) => {
+    const aFull = totalPlaced(a.id) >= a.count;
+    const bFull = totalPlaced(b.id) >= b.count;
+    return aFull - bFull; // false(0) before true(1) → full cards sink to bottom
+  });
+  sorted.forEach(card => {
     const el = buildCardEl(card);
     if (selectedCardIds.has(card.id)) el.classList.add('card-selected');
     list.appendChild(el);
@@ -1053,6 +1058,7 @@ function removePlaced(day, person, instanceId) {
   if (!daySchedule || !daySchedule[person]) return;
   daySchedule[person] = daySchedule[person].filter(s => s.instanceId !== instanceId);
   saveState();
+  renderCards();
   renderGrid();
 }
 
@@ -1093,6 +1099,7 @@ function placeCard(cardId, person, slotIndex, day) {
 
   existing.push({ instanceId: uid(), cardId, slotIndex });
   saveState();
+  renderCards();
   renderGrid();
   showToast(`Placed: ${card.name} at ${minutesToLabel(slotIndex * SLOT_MIN)}`);
   return true;
@@ -1252,6 +1259,7 @@ function restorePlacement(savedPlacement, savedPerson, day) {
   if (!state.schedule[day][savedPerson]) state.schedule[day][savedPerson] = [];
   state.schedule[day][savedPerson].push(savedPlacement);
   saveState();
+  renderCards();
   renderGrid();
 }
 
@@ -1356,6 +1364,7 @@ function startGridCardDrag(e, card, placement, person, srcEl) {
         });
       }
       saveState();
+      renderCards();
       renderGrid();
       clearPlacedSelection();
     } else {
@@ -1741,7 +1750,7 @@ function saveNewCard() {
 
   const assignedPerson = newCardPerson.value || '';
   const card = { id: uid(), name, description: desc, time, count: Math.max(1, count), assignedPerson };
-  state.cards.push(card);
+  state.cards.unshift(card);
   saveState();
   renderCards();
 
@@ -2145,6 +2154,7 @@ function deleteSelectedPlaced() {
   });
   clearPlacedSelection();
   saveState();
+  renderCards();
   renderGrid();
 }
 
